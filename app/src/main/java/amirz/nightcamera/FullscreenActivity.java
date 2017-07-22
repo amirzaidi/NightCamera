@@ -4,7 +4,6 @@ import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
-import android.graphics.Paint;
 import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -36,13 +35,11 @@ import android.view.animation.RotateAnimation;
 import android.widget.FrameLayout;
 
 import java.util.Arrays;
-import java.util.List;
 
 public class FullscreenActivity extends AppCompatActivity {
 
     private MotionTracker motionTracker;
 
-    private FrameLayout fullscreenContent;
     private TextureView pathFinder;
     private FloatingActionButton switcher;
     private FloatingActionButton shutter;
@@ -166,7 +163,6 @@ public class FullscreenActivity extends AppCompatActivity {
                 }
 
                 streamConfigurationMaps[i] = cameraCharacteristics[i].get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-
                 outputPreviewSizes[i] = streamConfigurationMaps[i].getOutputSizes(SurfaceTexture.class);
                 outputJpegSizes[i] = streamConfigurationMaps[i].getOutputSizes(ImageFormat.JPEG);
                 outputYuvSizes[i] = streamConfigurationMaps[i].getOutputSizes(ImageFormat.YUV_420_888);
@@ -182,9 +178,8 @@ public class FullscreenActivity extends AppCompatActivity {
         motionTracker = new MotionTracker(this);
         motionTracker.start();
 
-        imageSaver = new ImageSaver(motionTracker);
+        imageSaver = new ImageSaver(motionTracker, this);
 
-        fullscreenContent = (FrameLayout) findViewById(R.id.fullscreen_content);
         switcher = (FloatingActionButton) findViewById(R.id.switcher);
         shutter = (FloatingActionButton) findViewById(R.id.shutter);
         video = (FloatingActionButton) findViewById(R.id.video);
@@ -290,31 +285,58 @@ public class FullscreenActivity extends AppCompatActivity {
         }
     }
 
+    private void afterCaptureAttempt() {
+        /*backgroundPreviewHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                startPreview();*/
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        shutter.setEnabled(true);
+                        //Show animation
+                    }
+                });
+            /*}
+        });*/
+    }
+
+    private void startPreview() {
+        try {
+            CaptureRequest.Builder previewRequestBuilder = CaptureSettings.getPreviewRequestBuilder(cameraDevice);
+            previewRequestBuilder.addTarget(previewSurface);
+
+            captureSession.stopRepeating();
+            captureSession.setRepeatingRequest(previewRequestBuilder.build(), new CameraCaptureSession.CaptureCallback() {
+                @Override
+                public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
+                    super.onCaptureCompleted(session, request, result);
+                    CaptureSettings.exposureTime = result.get(CaptureResult.SENSOR_EXPOSURE_TIME);
+                    CaptureSettings.frameDuration = result.get(CaptureResult.SENSOR_FRAME_DURATION);
+                    CaptureSettings.sensitivity = result.get(CaptureResult.SENSOR_SENSITIVITY);
+                }
+            }, backgroundPreviewHandler);
+        }
+        catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
     protected void startCapture() {
         if (cameraDevice != null) {
             try {
+                //captureSession.stopRepeating();
                 captureSession.captureBurst(CaptureSettings.getCaptureRequests(cameraDevice, captureSurfaceReader.getSurface()), new CameraCaptureSession.CaptureCallback() {
                     @Override
                     public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
                         super.onCaptureCompleted(session, request, result);
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                shutter.setEnabled(true);
-                                //Show animation
-                            }
-                        });
+                        afterCaptureAttempt();
                     }
 
                     @Override
                     public void onCaptureFailed(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull CaptureFailure failure) {
                         super.onCaptureFailed(session, request, failure);
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                shutter.setEnabled(true);
-                            }
-                        });
+                        afterCaptureAttempt();
                     }
                 }, backgroundCaptureHandler);
             }
@@ -324,12 +346,30 @@ public class FullscreenActivity extends AppCompatActivity {
         }
     }
 
+    private boolean paused = false;
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (paused) {
+            paused = false;
+            motionTracker.start();
+            openCamera();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        motionTracker.stop();
+        closeCamera();
+        paused = true;
+    }
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
         imageSaver.close();
-        closeCamera();
-        motionTracker.stop();
         backgroundPreviewThread.quitSafely();
         backgroundCaptureThread.quitSafely();
         try {
@@ -360,7 +400,9 @@ public class FullscreenActivity extends AppCompatActivity {
                     previewSurface = new Surface(texture);
 
                     // Auto-save code
-                    captureSurfaceReader = ImageReader.newInstance(outputYuvSizes[useCamera][useCaptureSize].getWidth(), outputYuvSizes[useCamera][useCaptureSize].getHeight(), ImageFormat.YUV_420_888, ImageSaver.MAX_IMAGES);
+                    captureSurfaceReader = ImageReader.newInstance(
+                            outputYuvSizes[useCamera][useCaptureSize].getWidth(),
+                            outputYuvSizes[useCamera][useCaptureSize].getHeight(), ImageFormat.YUV_420_888, ImageSaver.MAX_IMAGES);
                     captureSurfaceReader.setOnImageAvailableListener(imageSaver, imageSaver.backgroundSaveHandler);
 
                     try {
@@ -368,7 +410,7 @@ public class FullscreenActivity extends AppCompatActivity {
                             @Override
                             public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
                                 captureSession = cameraCaptureSession;
-                                resetPreviewRequest();
+                                startPreview();
                                 runOnUiThread(new Runnable() {
                                     @Override
                                     public void run() {
@@ -400,27 +442,6 @@ public class FullscreenActivity extends AppCompatActivity {
         } catch (SecurityException e) {
             e.printStackTrace();
         } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void resetPreviewRequest() {
-        try {
-            CaptureRequest.Builder previewRequestBuilder = CaptureSettings.getPreviewRequestBuilder(cameraDevice);
-            previewRequestBuilder.addTarget(previewSurface);
-
-            captureSession.stopRepeating();
-            captureSession.setRepeatingRequest(previewRequestBuilder.build(), new CameraCaptureSession.CaptureCallback() {
-                @Override
-                public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
-                    super.onCaptureCompleted(session, request, result);
-                    CaptureSettings.exposureTime = result.get(CaptureResult.SENSOR_EXPOSURE_TIME);
-                    CaptureSettings.frameDuration = result.get(CaptureResult.SENSOR_FRAME_DURATION);
-                    CaptureSettings.sensitivity = result.get(CaptureResult.SENSOR_SENSITIVITY);
-                }
-            }, backgroundPreviewHandler);
-        }
-        catch (CameraAccessException e) {
             e.printStackTrace();
         }
     }

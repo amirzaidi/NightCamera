@@ -1,10 +1,15 @@
 package amirz.nightcamera;
 
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
+import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.media.Image;
 import android.media.ImageReader;
+import android.media.MediaScannerConnection;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -12,31 +17,36 @@ import android.support.media.ExifInterface;
 import android.util.Log;
 import android.util.SparseIntArray;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ImageSaver implements ImageReader.OnImageAvailableListener {
 
-    public static int MAX_IMAGES = 1;
+    public static int MAX_IMAGES = 2;
 
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
+
     static {
-        ORIENTATIONS.append(0, ExifInterface.ORIENTATION_ROTATE_90);
-        ORIENTATIONS.append(90, ExifInterface.ORIENTATION_NORMAL);
-        ORIENTATIONS.append(180, ExifInterface.ORIENTATION_ROTATE_270);
-        ORIENTATIONS.append(270, ExifInterface.ORIENTATION_ROTATE_180);
+        ORIENTATIONS.append(0, 90);
+        ORIENTATIONS.append(90, 0);
+        ORIENTATIONS.append(180, 270);
+        ORIENTATIONS.append(270, 180);
     }
 
     private MotionTracker mMotionTracker;
+    private Context mContext;
 
     public Handler backgroundSaveHandler;
     private HandlerThread backgroundSaveThread;
 
-    public ImageSaver(MotionTracker motionTracker) {
+    public ImageSaver(MotionTracker motionTracker, Context context) {
         mMotionTracker = motionTracker;
+        mContext = context;
         backgroundSaveThread = new HandlerThread("save");
         backgroundSaveThread.start();
         backgroundSaveHandler = new Handler(backgroundSaveThread.getLooper());
@@ -54,6 +64,8 @@ public class ImageSaver implements ImageReader.OnImageAvailableListener {
         }
     }
 
+    private AtomicInteger integer = new AtomicInteger(0);
+
     @Override
     public void onImageAvailable(ImageReader reader) {
         try {
@@ -63,11 +75,11 @@ public class ImageSaver implements ImageReader.OnImageAvailableListener {
                 if (FullscreenActivity.useCamera == 1 && rotateInt % 180 == 0)
                     rotateInt = 180 - rotateInt;
 
-                final String rotate = String.valueOf(ORIENTATIONS.get(rotateInt));
+                //final String rotate = String.valueOf(ORIENTATIONS.get(rotateInt));
                 final int width = reader.getWidth();
                 final int height = reader.getHeight();
 
-                Log.d("ImageAvailable", "Available with rotation " + rotate);
+                Log.d("ImageAvailable", "Available with rotation " + rotateInt);
 
                 Image.Plane[] planes = image.getPlanes();
 
@@ -89,21 +101,33 @@ public class ImageSaver implements ImageReader.OnImageAvailableListener {
                 Log.d("ImageAvailable", "Background Processing");
                 YuvImage yuv = new YuvImage(nv21, ImageFormat.NV21, width, height, new int[] { yRowStride, uvRowStride });
 
+                ByteArrayOutputStream out = new ByteArrayOutputStream();
+                yuv.compressToJpeg(new Rect(0, 0, width, height), 100, out);
+
+                byte[] imageBytes = out.toByteArray();
+                Matrix matrix = new Matrix();
+                matrix.postRotate(ORIENTATIONS.get(rotateInt));
+
+                //Bitmap bm = Bitmap.createScaledBitmap(BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length), 2 * 1440, 2 * 1080, false);
+                Bitmap bm = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+                bm = Bitmap.createBitmap(bm, 0, 0, bm.getWidth(), bm.getHeight(), matrix, false);
+
+                //do processing here
+
                 File mediaStorageDir = new File(Environment.getExternalStorageDirectory() + "/DCIM/Camera");
-                String timeStamp = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss").format(new Date());
+                String timeStamp = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss").format(new Date()) + "_" + integer.incrementAndGet();
                 File mediaFile = new File(mediaStorageDir.getPath() + File.separator + timeStamp + ".jpg");
+
                 try {
                     FileOutputStream fos = new FileOutputStream(mediaFile);
-                    yuv.compressToJpeg(new Rect(0, 0, width, height), 100, fos);
+                    Log.d("ImageAvailable", "Jpeg Compression (again, sorry)");
+                    bm.compress(Bitmap.CompressFormat.JPEG, 100, fos);
                     fos.close();
-
-                    ExifInterface exif = new ExifInterface(mediaFile.getPath());
-                    exif.setAttribute(ExifInterface.TAG_ORIENTATION, rotate);
-                    exif.saveAttributes();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
 
+                MediaScannerConnection.scanFile(mContext, new String[] { mediaFile.getPath() }, null, null);
                 Log.d("ImageAvailable", "Saved");
                 //Show animation
             }
