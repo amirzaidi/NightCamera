@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+
+    <solid
+        android:color="#ffffff"/>
+
+    <stroke
+        android:width="@dimen/shutter_stroke"
+        android:color="#00000000"/>
+
+    <size
+        android:width="@dimen/shutter_size"
+        android:height="@dimen/shutter_size"/>
+</shape>

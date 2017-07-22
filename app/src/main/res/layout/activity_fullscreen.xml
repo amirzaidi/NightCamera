@@ -1,0 +1,59 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/fullscreen_content"
+    android:layout_width="1080px"
+    android:layout_height="1920px"
+    android:background="@color/colorBackground"
+    android:keepScreenOn="true"
+    tools:context="amirz.nightcamera.FullscreenActivity">
+
+    <TextureView
+        android:id="@+id/pathfinder"
+        android:layout_width="1080px"
+        android:layout_height="1440px" />
+
+    <LinearLayout
+        android:layout_width="1080px"
+        android:layout_height="480px"
+        android:layout_gravity="bottom"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <android.support.design.widget.FloatingActionButton
+            android:id="@+id/switcher"
+            android:layout_width="@dimen/semishutter_size"
+            android:layout_height="@dimen/semishutter_size"
+            android:clickable="true"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            app:backgroundTint="@color/colorFabs"
+            app:borderWidth="0dp"
+            app:fabSize="normal"
+            app:srcCompat="@drawable/swapper_vector_rotated" />
+
+        <android.support.design.widget.FloatingActionButton
+            android:id="@+id/shutter"
+            android:layout_width="@dimen/shutter_size"
+            android:layout_height="@dimen/shutter_size"
+            android:layout_marginLeft="@dimen/shutter_margin"
+            android:layout_marginRight="@dimen/shutter_margin"
+            android:clickable="true"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            app:backgroundTint="@color/colorFabs"
+            app:borderWidth="0dp"
+            app:fabSize="mini"
+            app:srcCompat="@drawable/shutter" />
+
+        <android.support.design.widget.FloatingActionButton
+            android:id="@+id/video"
+            android:layout_width="@dimen/semishutter_size"
+            android:layout_height="@dimen/semishutter_size"
+            android:clickable="true"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            app:backgroundTint="@color/colorFabs"
+            app:borderWidth="0dp"
+            app:fabSize="normal"
+            app:srcCompat="@drawable/video_vector" />
+    </LinearLayout>
+
+</FrameLayout>

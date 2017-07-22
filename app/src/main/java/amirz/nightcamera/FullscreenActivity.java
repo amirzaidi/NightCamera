@@ -1,0 +1,434 @@
+package amirz.nightcamera;
+
+import android.Manifest;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.graphics.ImageFormat;
+import android.graphics.Paint;
+import android.graphics.SurfaceTexture;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraDevice;
+import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CaptureFailure;
+import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.CaptureResult;
+import android.hardware.camera2.TotalCaptureResult;
+import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.ImageReader;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.support.annotation.NonNull;
+import android.support.design.widget.FloatingActionButton;
+import android.support.v4.app.ActivityCompat;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.util.Log;
+import android.util.Size;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
+import android.view.Surface;
+import android.view.TextureView;
+import android.view.View;
+import android.view.animation.Animation;
+import android.view.animation.RotateAnimation;
+import android.widget.FrameLayout;
+
+import java.util.Arrays;
+import java.util.List;
+
+public class FullscreenActivity extends AppCompatActivity {
+
+    private MotionTracker motionTracker;
+
+    private FrameLayout fullscreenContent;
+    private TextureView pathFinder;
+    private FloatingActionButton switcher;
+    private FloatingActionButton shutter;
+    private FloatingActionButton video;
+
+    private CameraManager cameraManager;
+    private String[] cameras;
+    private CameraCharacteristics[] cameraCharacteristics;
+    private StreamConfigurationMap[] streamConfigurationMaps;
+    private Size[][] outputPreviewSizes;
+    private Size[][] outputJpegSizes;
+    private Size[][] outputYuvSizes;
+    private Size[][] outputRawSizes;
+
+    public static int useCamera = 0;
+    private int usePreviewSize = 0;
+    private int useCaptureSize = 0;
+    private float UiRotate = 0;
+
+    private Surface previewSurface;
+
+    private ImageReader captureSurfaceReader;
+    private ImageSaver imageSaver;
+
+    protected CameraDevice cameraDevice;
+    protected CameraCaptureSession captureSession;
+
+    private Handler backgroundPreviewHandler;
+    private HandlerThread backgroundPreviewThread;
+
+    private Handler backgroundCaptureHandler;
+    private HandlerThread backgroundCaptureThread;
+
+    private static final int REQUEST_PERMISSIONS = 200;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_fullscreen);
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+
+            initParameters();
+        } else {
+            ActivityCompat.requestPermissions(FullscreenActivity.this, new String[] {
+                    Manifest.permission.CAMERA,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+            }, REQUEST_PERMISSIONS);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == REQUEST_PERMISSIONS) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                initParameters();
+            } else {
+                finish();
+            }
+        }
+    }
+
+    TextureView.SurfaceTextureListener pathFinderTextureListener = new TextureView.SurfaceTextureListener() {
+        private RotateAnimation rotateAnimation;
+
+        @Override
+        public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+            openCamera();
+        }
+
+        @Override
+        public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+        }
+
+        @Override
+        public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+            closeCamera();
+            return true;
+        }
+
+        @Override
+        public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+            //Update every frame -> Sync regular updates here
+            if (rotateAnimation != null && rotateAnimation.hasEnded()) {
+                rotateAnimation = null;
+            }
+
+            if (rotateAnimation == null) {
+                float newRot = motionTracker.getRotation();
+                if (UiRotate != newRot) {
+                    rotateAnimation = new RotateAnimation(UiRotate, newRot, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
+                    rotateAnimation.setFillAfter(true);
+                    rotateAnimation.setDuration(2 * (long)Math.abs(newRot - UiRotate));
+                    switcher.startAnimation(rotateAnimation);
+                    video.startAnimation(rotateAnimation);
+                    UiRotate = newRot;
+                }
+            }
+        }
+    };
+
+    private void initParameters() {
+        final Context context = this;
+        cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        try {
+            cameras = cameraManager.getCameraIdList();
+            cameraCharacteristics = new CameraCharacteristics[cameras.length];
+
+            streamConfigurationMaps = new StreamConfigurationMap[cameras.length];
+            outputPreviewSizes = new Size[cameras.length][];
+            outputJpegSizes = new Size[cameras.length][];
+            outputYuvSizes = new Size[cameras.length][];
+            outputRawSizes = new Size[cameras.length][];
+            for (int i = 0; i < cameras.length; i++) {
+                cameraCharacteristics[i] = cameraManager.getCameraCharacteristics(cameras[i]);
+
+                int[] cap = cameraCharacteristics[i].get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES);
+                for (int j = 0; j < cap.length; j++) {
+                    Log.d("CameraCap", i + " has " + cap[j]);
+                }
+
+                streamConfigurationMaps[i] = cameraCharacteristics[i].get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+
+                outputPreviewSizes[i] = streamConfigurationMaps[i].getOutputSizes(SurfaceTexture.class);
+                outputJpegSizes[i] = streamConfigurationMaps[i].getOutputSizes(ImageFormat.JPEG);
+                outputYuvSizes[i] = streamConfigurationMaps[i].getOutputSizes(ImageFormat.YUV_420_888);
+                outputRawSizes[i] = streamConfigurationMaps[i].getOutputSizes(ImageFormat.RAW_SENSOR);
+                Log.d("CameraInit", "Camera " + i + ", Jpeg sizes " + outputJpegSizes[i].length + ", Yuv sizes " + outputYuvSizes[i].length+ ", Raw sizes " + outputRawSizes[i].length);
+            }
+        }
+        catch (CameraAccessException e) {
+            e.printStackTrace();
+            finish();
+        }
+
+        motionTracker = new MotionTracker(this);
+        motionTracker.start();
+
+        imageSaver = new ImageSaver(motionTracker);
+
+        fullscreenContent = (FrameLayout) findViewById(R.id.fullscreen_content);
+        switcher = (FloatingActionButton) findViewById(R.id.switcher);
+        shutter = (FloatingActionButton) findViewById(R.id.shutter);
+        video = (FloatingActionButton) findViewById(R.id.video);
+
+        pathFinder = (TextureView) findViewById(R.id.pathfinder);
+        pathFinder.setSurfaceTextureListener(pathFinderTextureListener);
+        pathFinder.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent motionEvent) {
+                return gestureDetector.onTouchEvent(motionEvent);
+            }
+
+            private GestureDetector gestureDetector = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {
+                private static final int SWIPE_THRESHOLD = 100;
+                private static final int SWIPE_VELOCITY_THRESHOLD = 100;
+
+                @Override
+                public boolean onDown(MotionEvent e) {
+                    return true;
+                }
+
+                @Override
+                public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+                    float diffY = e2.getY() - e1.getY();
+                    float diffX = e2.getX() - e1.getX();
+                    if (Math.abs(diffX) > Math.abs(diffY)) {
+                        if (Math.abs(diffX) > SWIPE_THRESHOLD && Math.abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
+                            if (diffX > 0) {
+                                Log.d("Swipe", "Right");
+                            } else {
+                                Log.d("Swipe", "Left");
+                            }
+                            return true;
+                        }
+                    } else if (Math.abs(diffY) > SWIPE_THRESHOLD && Math.abs(velocityY) > SWIPE_VELOCITY_THRESHOLD) {
+                        if (diffY > 0) {
+                            Log.d("Swipe", "Bottom");
+                        } else {
+                            Log.d("Swipe", "Top");
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+            });
+        });
+
+        backgroundPreviewThread = new HandlerThread("preview");
+        backgroundPreviewThread.start();
+        backgroundPreviewHandler = new Handler(backgroundPreviewThread.getLooper());
+
+        backgroundCaptureThread = new HandlerThread("capture");
+        backgroundCaptureThread.start();
+        backgroundCaptureHandler = new Handler(backgroundCaptureThread.getLooper());
+
+        switcher.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                switcher.setEnabled(false);
+                backgroundPreviewHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        useCamera ^= 1;
+                        closeCamera();
+                        openCamera();
+                    }
+                });
+            }
+        });
+
+        shutter.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                shutter.setEnabled(false);
+                backgroundCaptureHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        startCapture();
+                    }
+                });
+            }
+        });
+
+        video.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+            }
+        });
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) {
+            findViewById(R.id.fullscreen_content).setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                            | View.SYSTEM_UI_FLAG_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        }
+    }
+
+    protected void startCapture() {
+        if (cameraDevice != null) {
+            try {
+                captureSession.captureBurst(CaptureSettings.getCaptureRequests(cameraDevice, captureSurfaceReader.getSurface()), new CameraCaptureSession.CaptureCallback() {
+                    @Override
+                    public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
+                        super.onCaptureCompleted(session, request, result);
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                shutter.setEnabled(true);
+                                //Show animation
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onCaptureFailed(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull CaptureFailure failure) {
+                        super.onCaptureFailed(session, request, failure);
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                shutter.setEnabled(true);
+                            }
+                        });
+                    }
+                }, backgroundCaptureHandler);
+            }
+            catch (CameraAccessException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        imageSaver.close();
+        closeCamera();
+        motionTracker.stop();
+        backgroundPreviewThread.quitSafely();
+        backgroundCaptureThread.quitSafely();
+        try {
+            backgroundPreviewThread.join();
+            backgroundPreviewThread = null;
+            backgroundPreviewHandler = null;
+
+            backgroundCaptureThread.join();
+            backgroundCaptureThread = null;
+            backgroundCaptureHandler = null;
+        }
+        catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void openCamera() {
+        try {
+            cameraManager.openCamera(cameras[useCamera], new CameraDevice.StateCallback() {
+                @Override
+                public void onOpened(final CameraDevice camera) {
+                    cameraDevice = camera;
+
+                    // Preview surface
+                    final Size previewSize = outputPreviewSizes[useCamera][usePreviewSize];
+                    SurfaceTexture texture = pathFinder.getSurfaceTexture();
+                    texture.setDefaultBufferSize(previewSize.getWidth(), previewSize.getHeight());
+                    previewSurface = new Surface(texture);
+
+                    // Auto-save code
+                    captureSurfaceReader = ImageReader.newInstance(outputYuvSizes[useCamera][useCaptureSize].getWidth(), outputYuvSizes[useCamera][useCaptureSize].getHeight(), ImageFormat.YUV_420_888, ImageSaver.MAX_IMAGES);
+                    captureSurfaceReader.setOnImageAvailableListener(imageSaver, imageSaver.backgroundSaveHandler);
+
+                    try {
+                        cameraDevice.createCaptureSession(Arrays.asList(previewSurface, captureSurfaceReader.getSurface()), new CameraCaptureSession.StateCallback() {
+                            @Override
+                            public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+                                captureSession = cameraCaptureSession;
+                                resetPreviewRequest();
+                                runOnUiThread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        switcher.setEnabled(true);
+                                    }
+                                });
+                            }
+
+                            @Override
+                            public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+                            }
+                        }, null);
+                    }
+                    catch (CameraAccessException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                @Override
+                public void onDisconnected(CameraDevice camera) {
+                    closeCamera();
+                }
+
+                @Override
+                public void onError(CameraDevice camera, int error) {
+                    closeCamera();
+                }
+            }, backgroundPreviewHandler);
+        } catch (SecurityException e) {
+            e.printStackTrace();
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void resetPreviewRequest() {
+        try {
+            CaptureRequest.Builder previewRequestBuilder = CaptureSettings.getPreviewRequestBuilder(cameraDevice);
+            previewRequestBuilder.addTarget(previewSurface);
+
+            captureSession.stopRepeating();
+            captureSession.setRepeatingRequest(previewRequestBuilder.build(), new CameraCaptureSession.CaptureCallback() {
+                @Override
+                public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
+                    super.onCaptureCompleted(session, request, result);
+                    CaptureSettings.exposureTime = result.get(CaptureResult.SENSOR_EXPOSURE_TIME);
+                    CaptureSettings.frameDuration = result.get(CaptureResult.SENSOR_FRAME_DURATION);
+                    CaptureSettings.sensitivity = result.get(CaptureResult.SENSOR_SENSITIVITY);
+                }
+            }, backgroundPreviewHandler);
+        }
+        catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void closeCamera() {
+        if (null != cameraDevice) {
+            cameraDevice.close();
+            cameraDevice = null;
+        }
+    }
+}
