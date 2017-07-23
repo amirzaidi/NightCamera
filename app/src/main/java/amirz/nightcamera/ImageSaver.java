@@ -1,6 +1,7 @@
 package amirz.nightcamera;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.media.Image;
 import android.media.ImageReader;
@@ -21,8 +22,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class ImageSaver implements ImageReader.OnImageAvailableListener {
 
-    public static int MAX_IMAGES = 5;
-    private byte[][] YuvBuffers = new byte[MAX_IMAGES][];
+    private byte[][] YuvBuffers = new byte[CaptureSettings.CAPTURE_ON_CLICK][];
+    public MotionSnapshot motionStart;
 
     private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
 
@@ -81,11 +82,11 @@ public class ImageSaver implements ImageReader.OnImageAvailableListener {
             if (image != null) {
                 //track motion data
 
-                //final int width = reader.getWidth();
-                //final int height = reader.getHeight();
+                final int width = reader.getWidth();
+                final int height = reader.getHeight();
 
                 Image.Plane[] planes = image.getPlanes();
-                ByteBuffer buffer = planes[0].getBuffer();
+                /*ByteBuffer buffer = planes[0].getBuffer();
 
                 byte[] data = new byte[buffer.remaining()];
                 buffer.get(data);
@@ -94,16 +95,16 @@ public class ImageSaver implements ImageReader.OnImageAvailableListener {
 
                 Log.d("ImageSaver", "available");
                 mActivity.afterCaptureAttempt();
-                if (true) return;
+                if (true) return;*/
 
-                /*ByteBuffer yBuffer = planes[0].getBuffer();
+                ByteBuffer yBuffer = planes[0].getBuffer();
                 ByteBuffer uBuffer = planes[1].getBuffer();
                 ByteBuffer vBuffer = planes[2].getBuffer();
 
                 final int rowStride = planes[0].getRowStride();
 
                 int i = 0;
-                for (; i < MAX_IMAGES; i++) {
+                for (; i < CaptureSettings.CAPTURE_ON_CLICK; i++) {
                     if (YuvBuffers[i] == null) {
                         YuvBuffers[i] = new byte[3 * rowStride * height];
                         break;
@@ -118,30 +119,41 @@ public class ImageSaver implements ImageReader.OnImageAvailableListener {
 
                 Log.d("imageAvailable", "copied to buffer " + i);
 
-                if (i == MAX_IMAGES - 1) {
+                if (i == CaptureSettings.CAPTURE_ON_CLICK - 1) {
+                    int rotate = mMotionTracker.getRotation();
+                    if (mActivity.useCamera == 1 && rotate % 180 == 0)
+                        rotate = 180 - rotate;
+
                     final int rotateInt = rotate;
                     final byte[][] buffers = YuvBuffers;
-                    reset();
+                    final MotionSnapshot motionEnd = mMotionTracker.snapshot();
 
                     backgroundSaveHandler.post(new Runnable() {
                         @Override
                         public void run() {
-                            Log.d("Process", "Start");
+                            double[] movementDiff = new double[3];
+                            for (int i = 0; i < 3; i++)
+                                movementDiff[i] = (double)motionEnd.mMovement[i] - (double)motionStart.mMovement[i];
+
+                            double mov = Math.sqrt(Math.pow(movementDiff[0], 2) + Math.pow(movementDiff[1], 2) + Math.pow(movementDiff[2], 2));
+                            int useBuffers = (int)Math.ceil(0.01d / mov);
+                            if (useBuffers > buffers.length)
+                                useBuffers = buffers.length;
+
+                            Log.d("Process", "Start with buffercount " + useBuffers + " " + mov);
+                            //int bufMaxIndex = useBuffers - 1;
 
                             Bitmap bm = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-
-                            int[] out = new int[width * height];
+                            //int[] out = new int[width * height];
+                            int[] out = new int[width];
                             int channelSize = rowStride * height;
                             int R, G, B, Y, Cr = 0, Cb = 0;
 
                             for (int y = 0; y < height; y++) {
                                 final int jDiv2 = y >> 1;
                                 for (int x = 0; x < width; x++) {
-                                    R = 0;
-                                    G = 0;
-                                    B = 0;
-
-                                    for (int i = 0; i < MAX_IMAGES; i++) {
+                                    R = 0; G = 0; B = 0;
+                                    for (int i = 0; i < useBuffers; i++) {
                                         Y = buffers[i][y * rowStride + x];
 
                                         if (Y < 0)
@@ -170,10 +182,9 @@ public class ImageSaver implements ImageReader.OnImageAvailableListener {
                                         B += Y + Cb + (Cb >> 1) + (Cb >> 2) + (Cb >> 6);
                                     }
 
-                                    //R /= MAX_IMAGES;
-                                    //G /= MAX_IMAGES;
-                                    //B /= MAX_IMAGES;
-
+                                    R /= useBuffers;
+                                    G /= useBuffers;
+                                    B /= useBuffers;
                                     //Apply colour correction curve
 
                                     if (R < 0)
@@ -191,15 +202,16 @@ public class ImageSaver implements ImageReader.OnImageAvailableListener {
                                     else if (B > 255)
                                         B = 255;
 
-                                    out[y * width + x] = 0xff000000 + (B << 16) + (G << 8) + R;
+                                    //out[y * width + x] = 0xff000000 + (B << 16) + (G << 8) + R;
+                                    out[x] = 0xff000000 + (B << 16) + (G << 8) + R;
                                 }
+
+                                bm.setPixels(out, 0, width, 0, y, width, 1);
                             }
 
-                            bm.setPixels(out, 0, width, 0, 0, width, height);
+                            //Process out
 
-                            Matrix matrix = new Matrix();
-                            matrix.postRotate(ORIENTATIONS.get(rotateInt));
-                            bm = Bitmap.createBitmap(bm, 0, 0, bm.getWidth(), bm.getHeight(), matrix, false);
+                            //bm.setPixels(out, 0, width, 0, 0, width, height);
 
                             File mediaStorageDir = new File(Environment.getExternalStorageDirectory() + "/DCIM/Camera");
                             String timeStamp = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss").format(new Date()) + "_" + integer.incrementAndGet();
@@ -214,12 +226,26 @@ public class ImageSaver implements ImageReader.OnImageAvailableListener {
                                 e.printStackTrace();
                             }
 
+                            bm.recycle();
+
+                            SparseIntArray ORIENTATIONS = new SparseIntArray();
+                            ORIENTATIONS.append(0, ExifInterface.ORIENTATION_ROTATE_90);
+                            ORIENTATIONS.append(90, ExifInterface.ORIENTATION_NORMAL);
+                            ORIENTATIONS.append(180, ExifInterface.ORIENTATION_ROTATE_270);
+                            ORIENTATIONS.append(270, ExifInterface.ORIENTATION_ROTATE_180);
+
                             try {
+                                ExifInterface exif = new ExifInterface(mediaFile.getPath());
+                                exif.setAttribute(ExifInterface.TAG_ORIENTATION, String.valueOf(ORIENTATIONS.get(rotateInt)));
+                                exif.saveAttributes();
+
                                 MediaScannerConnection.scanFile(mActivity, new String[]{mediaFile.getPath()}, null, null);
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
+
                             Log.d("Process", "Done");
+                            reset();
                         }
                     });
                 }
@@ -240,7 +266,7 @@ public class ImageSaver implements ImageReader.OnImageAvailableListener {
 
                 //do processing here
 
-                File mediaStorageDir = new File(Environment.getExternalStorageDirectory() + "/DCIM/Camera");
+                /*File mediaStorageDir = new File(Environment.getExternalStorageDirectory() + "/DCIM/Camera");
                 String timeStamp = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss").format(new Date()) + "_" + integer.incrementAndGet();
                 File mediaFile = new File(mediaStorageDir.getPath() + File.separator + timeStamp + ".jpg");
 
@@ -271,7 +297,7 @@ public class ImageSaver implements ImageReader.OnImageAvailableListener {
                 MediaScannerConnection.scanFile(mActivity, new String[] { mediaFile.getPath() }, null, null);
                 Log.d("ImageAvailable", "Saved");
 
-                mActivity.afterCaptureAttempt();
+                mActivity.afterCaptureAttempt();*/
                 //Show animation
             }
         } catch (Exception e) {

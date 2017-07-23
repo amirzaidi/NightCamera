@@ -1,6 +1,5 @@
 package amirz.nightcamera;
 
-import android.content.pm.PackageManager;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraMetadata;
@@ -16,7 +15,7 @@ public class CaptureSettings {
     public static long exposureTime = 33333333L;
     public static long frameDuration = 33333333L;
     public static int sensitivity = 100;
-    private static int CaptureOnClick = 3;
+    public static int CAPTURE_ON_CLICK = 5;
 
     public static ArrayList<CaptureRequest> getCaptureRequests(CameraDevice cameraDevice, List<Surface> surfaces) throws CameraAccessException {
         ArrayList<CaptureRequest> requests = new ArrayList<>();
@@ -48,20 +47,31 @@ public class CaptureSettings {
             requests.add(builder.build());
         } else {
             builder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_USE_SCENE_MODE);
-            //builder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
-            //builder.set(CaptureRequest.CONTROL_AE_MODE, CameraMetadata.CONTROL_AE_MODE_ON);
+            builder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+            builder.set(CaptureRequest.CONTROL_AE_MODE, CameraMetadata.CONTROL_AE_MODE_ON);
 
             builder.set(CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE, CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY);
             builder.set(CaptureRequest.EDGE_MODE, CaptureRequest.EDGE_MODE_HIGH_QUALITY);
             builder.set(CaptureRequest.NOISE_REDUCTION_MODE, CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY);
-            builder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, new Range<>(15, 15));
 
-            for (int i = 0; i < CaptureOnClick; i++)
-                requests.add(builder.build());
+            requests.add(builder.build());
 
-            if (sensitivity < 120) {
-                //HDR
-            }
+            builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 6);
+            requests.add(builder.build());
+
+            builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, -6);
+            requests.add(builder.build());
+
+            builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 12);
+            requests.add(builder.build());
+
+            builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, -12);
+            requests.add(builder.build());
+            //cut off towards the end on motion
+
+            //for (int exposureCompensation = -12; exposureCompensation <= 12; exposureCompensation += 6) { //sorta HDR
+                //builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, exposureCompensation);
+            //}
         }
 
 

@@ -56,9 +56,9 @@ public class FullscreenActivity extends AppCompatActivity {
     private CameraCharacteristics[] cameraCharacteristics;
     private StreamConfigurationMap[] streamConfigurationMaps;
     //private Size[][] outputPreviewSizes;
-    private Size[][] outputPrivateSizes;
-    private Size[][] outputJpegSizes;
-    //private Size[][] outputYuvSizes;
+    //private Size[][] outputPrivateSizes;
+    //private Size[][] outputJpegSizes;
+    private Size[][] outputYuvSizes;
     //private Size[][] outputRawSizes;
 
     public static int useCamera = 0;
@@ -167,9 +167,9 @@ public class FullscreenActivity extends AppCompatActivity {
 
             streamConfigurationMaps = new StreamConfigurationMap[cameras.length];
             //outputPreviewSizes = new Size[cameras.length][];
-            outputPrivateSizes = new Size[cameras.length][];
-            outputJpegSizes = new Size[cameras.length][];
-            //outputYuvSizes = new Size[cameras.length][];
+            //outputPrivateSizes = new Size[cameras.length][];
+            //outputJpegSizes = new Size[cameras.length][];
+            outputYuvSizes = new Size[cameras.length][];
             //outputRawSizes = new Size[cameras.length][];
             for (int i = 0; i < cameras.length; i++) {
                 cameraCharacteristics[i] = cameraManager.getCameraCharacteristics(cameras[i]);
@@ -182,11 +182,11 @@ public class FullscreenActivity extends AppCompatActivity {
                 streamConfigurationMaps[i] = cameraCharacteristics[i].get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
                 //outputPreviewSizes[i] = streamConfigurationMaps[i].getOutputSizes(SurfaceTexture.class);
-                outputPrivateSizes[i] = streamConfigurationMaps[i].getOutputSizes(ImageFormat.PRIVATE);
-                outputJpegSizes[i] = streamConfigurationMaps[i].getOutputSizes(ImageFormat.JPEG);
-                //outputYuvSizes[i] = streamConfigurationMaps[i].getOutputSizes(ImageFormat.YUV_420_888);
+                //outputPrivateSizes[i] = streamConfigurationMaps[i].getOutputSizes(ImageFormat.PRIVATE);
+                //outputJpegSizes[i] = streamConfigurationMaps[i].getOutputSizes(ImageFormat.JPEG);
+                outputYuvSizes[i] = streamConfigurationMaps[i].getOutputSizes(ImageFormat.YUV_420_888);
                 //outputRawSizes[i] = streamConfigurationMaps[i].getOutputSizes(ImageFormat.RAW_SENSOR);
-                Log.d("CameraInit", "Camera " + i + ", Jpeg sizes " + outputJpegSizes[i].length + ",  Private sizes " + outputPrivateSizes[i].length);
+                //Log.d("CameraInit", "Camera " + i + ", Jpeg sizes " + outputJpegSizes[i].length + ",  Private sizes " + outputPrivateSizes[i].length);
             }
         }
         catch (CameraAccessException e) {
@@ -319,30 +319,39 @@ public class FullscreenActivity extends AppCompatActivity {
                     texture.setDefaultBufferSize(1440, 1080);
                     previewSurface = new Surface(texture);
 
-                    Size priv = outputPrivateSizes[useCamera][useCaptureSize];
+                    Size yuv = outputYuvSizes[useCamera][useCaptureSize];
+                    captureSurfaceReader = ImageReader.newInstance(
+                            yuv.getWidth(),
+                            yuv.getHeight(),
+                            ImageFormat.YUV_420_888, 11);
+
+                    captureSurfaceReader.setOnImageAvailableListener(imageSaver, imageSaver.backgroundCopyHandler);
+
+                    /*Size priv = outputPrivateSizes[useCamera][useCaptureSize];
 
                     captureSurfaceReader = ImageReader.newInstance(
                             priv.getWidth(),
                             priv.getHeight(),
                             ImageFormat.PRIVATE, 11);
 
-                    captureSurfaceReader.setOnImageAvailableListener(imagePreview, backgroundCaptureHandler);
+                    captureSurfaceReader.setOnImageAvailableListener(imagePreview, backgroundCaptureHandler);*/
 
-                    reprocessSurfaceReader = ImageReader.newInstance(
+                    /*reprocessSurfaceReader = ImageReader.newInstance(
                             outputJpegSizes[useCamera][useCaptureSize].getWidth(),
                             outputJpegSizes[useCamera][useCaptureSize].getHeight(),
                             ImageFormat.JPEG, 11);
 
-                    reprocessSurfaceReader.setOnImageAvailableListener(imageSaver, imageSaver.backgroundCopyHandler);
+                    reprocessSurfaceReader.setOnImageAvailableListener(imageSaver, imageSaver.backgroundCopyHandler);*/
 
                     try {
-                        cameraDevice.createReprocessableCaptureSession(
+                        cameraDevice.createCaptureSession(Arrays.asList(previewSurface, captureSurfaceReader.getSurface()), new CameraCaptureSession.StateCallback() {
+                        /*cameraDevice.createReprocessableCaptureSession(
                                 new InputConfiguration(priv.getWidth(), priv.getHeight(), ImageFormat.PRIVATE),
-                                Arrays.asList(previewSurface, captureSurfaceReader.getSurface(), reprocessSurfaceReader.getSurface()), new CameraCaptureSession.StateCallback() {
+                                Arrays.asList(previewSurface, captureSurfaceReader.getSurface(), reprocessSurfaceReader.getSurface()), new CameraCaptureSession.StateCallback() {*/
                             @Override
                             public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
                                 captureSession = cameraCaptureSession;
-                                imagePreview.zslWriter = ImageWriter.newInstance(captureSurfaceReader.getSurface(), 11);
+                                //imagePreview.zslWriter = ImageWriter.newInstance(captureSurfaceReader.getSurface(), 11);
 
                                 startPreview();
                                 runOnUiThread(new Runnable() {
@@ -391,7 +400,7 @@ public class FullscreenActivity extends AppCompatActivity {
         try {
             CaptureRequest.Builder previewRequestBuilder = CaptureSettings.getPreviewRequestBuilder(cameraDevice);
             previewRequestBuilder.addTarget(previewSurface);
-            previewRequestBuilder.addTarget(captureSurfaceReader.getSurface());
+            //previewRequestBuilder.addTarget(captureSurfaceReader.getSurface());
             //previewRequestBuilder.addTarget(reprocessSurfaceReader.getSurface());
 
             captureSession.stopRepeating();
@@ -401,7 +410,7 @@ public class FullscreenActivity extends AppCompatActivity {
                 @Override
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
                     super.onCaptureCompleted(session, request, result);
-                    imagePreview.result = result;
+                    //imagePreview.result = result;
 
                     /*Image img = captureSurfaceReader.acquireLatestImage();
                     if (img != null) {
@@ -447,14 +456,13 @@ public class FullscreenActivity extends AppCompatActivity {
                 //Image image = captureSurfaceReader.acquireLatestImage();
                 //long stamp = image.getTimestamp();
 
-
-
                 /*Image image = imagePreview.zslWriter.dequeueInputImage();
                 TotalCaptureResult res = imagePreview.results.peek();
 
                 CaptureRequest.Builder builder = cameraDevice.createReprocessCaptureRequest(res);*/
 
-                /*captureSession.captureBurst(CaptureSettings.getCaptureRequests(cameraDevice, Arrays.asList(previewSurface, reprocessSurfaceReader.getSurface())), new CameraCaptureSession.CaptureCallback() {
+                imageSaver.motionStart = motionTracker.snapshot();
+                captureSession.captureBurst(CaptureSettings.getCaptureRequests(cameraDevice, Arrays.asList(previewSurface, captureSurfaceReader.getSurface())), new CameraCaptureSession.CaptureCallback() {
                     private long mTimestamp;
                     private long mFrameNumber;
 
@@ -469,7 +477,7 @@ public class FullscreenActivity extends AppCompatActivity {
                     public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
                         super.onCaptureCompleted(session, request, result);
                         Log.d("onCapture", "Complete " + mTimestamp + " " + mFrameNumber);
-                        try {
+                        /*try {
                             CaptureRequest.Builder builder = cameraDevice.createReprocessCaptureRequest(result);
                             builder.set(CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE, CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY);
                             builder.set(CaptureRequest.EDGE_MODE, CaptureRequest.EDGE_MODE_HIGH_QUALITY);
@@ -479,7 +487,7 @@ public class FullscreenActivity extends AppCompatActivity {
                         }
                         catch (CameraAccessException e) {
                             e.printStackTrace();
-                        }
+                        }*/
                     }
 
                     @Override
@@ -505,7 +513,7 @@ public class FullscreenActivity extends AppCompatActivity {
                         super.onCaptureBufferLost(session, request, target, frameNumber);
                         Log.d("onCapture", "BufLost " + frameNumber);
                     }
-                }, backgroundCaptureHandler);*/
+                }, backgroundCaptureHandler);
             }
             catch (Exception e) {
                 e.printStackTrace();

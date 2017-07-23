@@ -5,7 +5,10 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.SystemClock;
 import android.util.Log;
+
+import java.util.ArrayList;
 
 public class MotionTracker {
     private Context mContext;
@@ -24,6 +27,11 @@ public class MotionTracker {
     public float[] mLinearDelta = new float[3];
     public float[] mRotationDelta = new float[5];
     public float[] mGyroscopeDelta = new float[3];
+
+    private long lastLinearUpdate = 0;
+    private long lastLinearShake = 0;
+    private float[] mVelocity = new float[3];
+    private float[] mMovement = new float[3];
 
     public MotionTracker(Context context) {
         mContext = context;
@@ -71,6 +79,10 @@ public class MotionTracker {
         }
     }
 
+    public MotionSnapshot snapshot() {
+        return new MotionSnapshot(mMovement);
+    }
+
     private SensorEventListener mGravityTracker = new SensorEventListener() {
         @Override
         public void onSensorChanged(SensorEvent sensorEvent) {
@@ -87,17 +99,52 @@ public class MotionTracker {
         @Override
         public void onAccuracyChanged(Sensor sensor, int i) { }
     };
+
+    private ArrayList<float[]> previousAcc = new ArrayList<>();
+
     private SensorEventListener mLinearTracker = new SensorEventListener() {
         @Override
         public void onSensorChanged(SensorEvent sensorEvent) {
-            if (mLinear == null) {
-                mLinear = sensorEvent.values.clone();
+            long newLinearUpdate = SystemClock.elapsedRealtimeNanos();
+            float deltaTime = (float)(newLinearUpdate - lastLinearUpdate) / 1000000000f;
+            lastLinearUpdate = newLinearUpdate;
+
+            boolean shake = false;
+            if (mLinear != null) {
+                for (int i = 0; i < sensorEvent.values.length; i++) {
+                    mLinearDelta[i] = sensorEvent.values[i] - mLinear[i];
+                    mVelocity[i] += mLinearDelta[i] * deltaTime;
+                    mMovement[i] += mVelocity[i] * deltaTime;
+
+                    if (Math.abs(mLinearDelta[i]) > 0.25f && Math.abs(sensorEvent.values[i]) > 0.25f) {
+                        shake = true;
+                        //Log.d("diffShake", diff + " " + i);
+                    }
+                }
             }
 
-            for (int i = 0; i < sensorEvent.values.length; i++) {
-                mLinearDelta[i] += sensorEvent.values[i] - mLinear[i];
-                mLinear[i] = sensorEvent.values[i];
+            if (shake) {
+                lastLinearShake = newLinearUpdate;
+                previousAcc.clear();
+            } else {
+                previousAcc.add(sensorEvent.values.clone());
             }
+
+            float timeFromLastShake = (float)(newLinearUpdate - lastLinearShake) / 1000000000f;
+            if (timeFromLastShake > 0.2f) {
+                mLinear = new float[3];
+                for (float[] acc : previousAcc) {
+                    for (int i = 0; i < 3; i++)
+                        mLinear[i] += acc[i] / previousAcc.size(); //calibration
+                }
+
+                //Log.d("linearAcc", "reset " + mVelocity[0] + " " + mVelocity[1] + " " + mVelocity[2]);
+
+                mLinearDelta = new float[3];
+                mVelocity = new float[3];
+            }
+
+            //Log.d("velocity", );
         }
 
         @Override
