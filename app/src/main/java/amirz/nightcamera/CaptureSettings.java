@@ -54,6 +54,10 @@ public class CaptureSettings {
             builder.set(CaptureRequest.EDGE_MODE, CaptureRequest.EDGE_MODE_HIGH_QUALITY);
             builder.set(CaptureRequest.NOISE_REDUCTION_MODE, CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY);
 
+
+            //builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, -12);
+            //for (int i = 0; i < 5; i++)
+            //    requests.add(builder.build());
             requests.add(builder.build());
 
             builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 6);

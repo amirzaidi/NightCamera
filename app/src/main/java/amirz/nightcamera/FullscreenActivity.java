@@ -39,7 +39,11 @@ import android.view.animation.Animation;
 import android.view.animation.RotateAnimation;
 import android.widget.FrameLayout;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class FullscreenActivity extends AppCompatActivity {
@@ -321,11 +325,13 @@ public class FullscreenActivity extends AppCompatActivity {
 
                     Size yuv = outputYuvSizes[useCamera][useCaptureSize];
                     captureSurfaceReader = ImageReader.newInstance(
-                            yuv.getWidth(),
-                            yuv.getHeight(),
+                            //yuv.getWidth(),
+                            //yuv.getHeight(),
+                            //1440, 1080,
+                            2304, 1728,
                             ImageFormat.YUV_420_888, 11);
 
-                    captureSurfaceReader.setOnImageAvailableListener(imageSaver, imageSaver.backgroundCopyHandler);
+                    captureSurfaceReader.setOnImageAvailableListener(imageSaver, imageSaver.backgroundSaveHandler);
 
                     /*Size priv = outputPrivateSizes[useCamera][useCaptureSize];
 
@@ -461,8 +467,12 @@ public class FullscreenActivity extends AppCompatActivity {
 
                 CaptureRequest.Builder builder = cameraDevice.createReprocessCaptureRequest(res);*/
 
+                List<CaptureRequest> requests = CaptureSettings.getCaptureRequests(cameraDevice, Arrays.asList(previewSurface, captureSurfaceReader.getSurface()));
+                imageSaver.count = requests.size();
+                imageSaver.waiter.acquireUninterruptibly();
+
                 imageSaver.motionStart = motionTracker.snapshot();
-                captureSession.captureBurst(CaptureSettings.getCaptureRequests(cameraDevice, Arrays.asList(previewSurface, captureSurfaceReader.getSurface())), new CameraCaptureSession.CaptureCallback() {
+                captureSession.captureBurst(requests, new CameraCaptureSession.CaptureCallback() {
                     private long mTimestamp;
                     private long mFrameNumber;
 
@@ -476,7 +486,8 @@ public class FullscreenActivity extends AppCompatActivity {
                     @Override
                     public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
                         super.onCaptureCompleted(session, request, result);
-                        Log.d("onCapture", "Complete " + mTimestamp + " " + mFrameNumber);
+                        imageSaver.metadatas.add(new ImageMetadata(mTimestamp, mFrameNumber, request, result, motionTracker.snapshot()));
+
                         /*try {
                             CaptureRequest.Builder builder = cameraDevice.createReprocessCaptureRequest(result);
                             builder.set(CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE, CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY);
@@ -500,6 +511,7 @@ public class FullscreenActivity extends AppCompatActivity {
                     public void onCaptureSequenceCompleted(@NonNull CameraCaptureSession session, int sequenceId, long frameNumber) {
                         super.onCaptureSequenceCompleted(session, sequenceId, frameNumber);
                         Log.d("onCapture", "SeqComplete " + sequenceId + " " + frameNumber);
+                        imageSaver.waiter.release();
                     }
 
                     @Override
