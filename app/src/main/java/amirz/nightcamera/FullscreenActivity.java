@@ -184,6 +184,7 @@ public class FullscreenActivity extends AppCompatActivity {
                 }
 
                 streamConfigurationMaps[i] = cameraCharacteristics[i].get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+                //Object o = cameraCharacteristics[i].get(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE); //100 to 3199
 
                 //outputPreviewSizes[i] = streamConfigurationMaps[i].getOutputSizes(SurfaceTexture.class);
                 //outputPrivateSizes[i] = streamConfigurationMaps[i].getOutputSizes(ImageFormat.PRIVATE);
@@ -269,8 +270,9 @@ public class FullscreenActivity extends AppCompatActivity {
                     public void run() {
                         useCamera ^= 1;
                         closeCamera();
-                        imageSaver.reset();
+                        //imageSaver.reset();
                         openCamera();
+                        afterCaptureAttempt();
                     }
                 });
             }
@@ -325,10 +327,10 @@ public class FullscreenActivity extends AppCompatActivity {
 
                     Size yuv = outputYuvSizes[useCamera][useCaptureSize];
                     captureSurfaceReader = ImageReader.newInstance(
-                            //yuv.getWidth(),
-                            //yuv.getHeight(),
+                            yuv.getWidth(),
+                            yuv.getHeight(),
                             //1440, 1080,
-                            2304, 1728,
+                            //2304, 1728,
                             ImageFormat.YUV_420_888, 11);
 
                     captureSurfaceReader.setOnImageAvailableListener(imageSaver, imageSaver.backgroundSaveHandler);
@@ -440,6 +442,8 @@ public class FullscreenActivity extends AppCompatActivity {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }*/
+                    CaptureSettings.previewResult = result;
+                    //Log.d("PicSettings", "Using night mode - exposure " + result.get(CaptureResult.SENSOR_EXPOSURE_TIME) + ", frame duration " + result.get(CaptureResult.SENSOR_FRAME_DURATION));
                     /*CaptureSettings.exposureTime = result.get(CaptureResult.SENSOR_EXPOSURE_TIME);
                     CaptureSettings.frameDuration = result.get(CaptureResult.SENSOR_FRAME_DURATION);
                     CaptureSettings.sensitivity = result.get(CaptureResult.SENSOR_SENSITIVITY);*/
