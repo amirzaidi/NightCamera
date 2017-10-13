@@ -80,7 +80,7 @@ public class MotionTracker {
     }
 
     public MotionSnapshot snapshot() {
-        return new MotionSnapshot(mMovement);
+        return new MotionSnapshot(mMovement, getRotation());
     }
 
     private SensorEventListener mGravityTracker = new SensorEventListener() {

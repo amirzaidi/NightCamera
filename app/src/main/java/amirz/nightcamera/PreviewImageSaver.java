@@ -1,4 +1,4 @@
-package amirz.nightcamera;
+/*package amirz.nightcamera;
 
 import android.graphics.Bitmap;
 import android.hardware.camera2.CameraAccessException;
@@ -6,7 +6,7 @@ import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CaptureFailure;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.TotalCaptureResult;
-import android.media.ExifInterface;
+import android.support.media.ExifInterface;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaScannerConnection;
@@ -35,7 +35,7 @@ public class PreviewImageSaver implements ImageReader.OnImageAvailableListener {
     public MotionSnapshot motionStart;
 
     public LinkedList<Image> images = new LinkedList<>();
-    public LinkedList<ImageMetadata> metadatas = new LinkedList<>();
+    public LinkedList<ImageData> metadatas = new LinkedList<>();
     public Semaphore waiter = new Semaphore(1);
     public int count;
 
@@ -282,151 +282,15 @@ public class PreviewImageSaver implements ImageReader.OnImageAvailableListener {
                             };
 
                             mActivity.captureSession.captureBurst(crs, onFail, backgroundReprocessHandler);
+                            mActivity.startPreview();
                         } catch (CameraAccessException e) {
                             e.printStackTrace();
                         }
                     }
                 });
             }
-/*
-            if (true) return;
-            Image image = null;
-            if (image != null) {
-                //track motion data
-
-                images.add(image);
-                if (images.size() == count) {
-                    int rotate = mMotionTracker.getRotation();
-                    if (mActivity.useCamera == 1 && rotate % 180 == 0)
-                        rotate = 180 - rotate;
-
-                    Image[] imgs = images.toArray(new Image[images.size()]);
-                    images.clear();
-
-                    waiter.acquireUninterruptibly();
-
-                    ImageMetadata[] meta = metadatas.toArray(new ImageMetadata[metadatas.size()]);
-                    metadatas.clear();
-
-                    int width = reader.getWidth();
-                    int height = reader.getHeight();
-                    int rowStride = image.getPlanes()[0].getRowStride();
-
-                    ByteBuffer[][] buffers = new ByteBuffer[imgs.length][];
-                    for (int i = 0; i < imgs.length; i++) {
-                        Image.Plane[] planes = imgs[i].getPlanes();
-                        buffers[i] = new ByteBuffer[planes.length];
-
-                        for (int j = 0; j < planes.length; j++)
-                            buffers[i][j] = planes[j].getBuffer();
-                    }
-                    int buffer2limit = buffers[0][2].remaining();
-
-                    Bitmap bm = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-                    Log.d("ImageAvailable", "Processing");
-
-                    int[]   Ys = new int[imgs.length],
-                            Crs = new int[imgs.length],
-                            Cbs = new int[imgs.length];
-
-                    ByteBuffer[] imgBuff;
-                    int Y, Cr = 0, Cb = 0, B, G, R;
-                    boolean evenX;
-
-                    for (int y = 0; y < height; y++) {
-                        int jDiv2 = y >> 1;
-                        for (int x = 0; x < width; x++) {
-                            evenX = (x & 0x1) == 0;
-
-                            for (int i = 0; i < imgs.length; i++) {
-                                imgBuff = buffers[i];
-                                Ys[i] = 0xFF & imgBuff[0].get(y * rowStride + x);
-
-                                if (evenX) {
-                                    int cOff = jDiv2 * rowStride + (x >> 1) * 2;
-                                    int buff = 2;
-                                    if (cOff >= buffer2limit) {
-                                        buff = 1;
-                                        cOff -= buffer2limit;
-                                    }
-                                    Cbs[i] = (0xFF & imgBuff[buff].get(cOff)) - 128;
-
-                                    buff = 2;
-                                    if (++cOff >= buffer2limit) {
-                                        buff = 1;
-                                        cOff -= buffer2limit;
-                                    }
-                                    Crs[i] = (0xFF & imgBuff[buff].get(cOff)) - 128;
-                                }
-                            }
-
-                            int lightFactor = Math.max(Math.min(Ys[0] * 10, 256), 0);
-                            int darkFactor = 256 + 6 - lightFactor;
-
-                            Y = (((Ys[1] + Ys[2]) * darkFactor + (Ys[3] + Ys[0]) * lightFactor) * 1192) / (512 + 12);
-
-                            if (evenX) {
-                                Arrays.sort(Cbs);
-                                Arrays.sort(Crs);
-                                Cb = (Cbs[1] + Cbs[2]) / 2;
-                                Cr = (Crs[1] + Crs[2]) / 2;
-                            }
-
-                            //YCbCr to RGB
-                            R = Y + 2066*Cb;
-                            G = Y - 833*Cr - 400*Cb;
-                            B = Y + 1634*Cr;
-
-                            R = Math.min(Math.max(R >> 10, 0), 0xFF);
-                            G = Math.min(Math.max(G >> 10, 0), 0xFF);
-                            B = Math.min(Math.max(B >> 10, 0), 0xFF);
-                            out[x] = 0xFF000000 | (R << 16) | (G << 8) | B;
-                        }
-
-                        bm.setPixels(out, 0, width, 0, y, width, 1);
-                    }
-
-                    Log.d("ImageAvailable", "Processing 2");
-
-                    for (int i = 0; i < imgs.length; i++)
-                        imgs[i].close();
-
-                    File mediaStorageDir = new File(Environment.getExternalStorageDirectory() + "/DCIM/Camera");
-                    String timeStamp = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss").format(new Date()) + "_" + integer.incrementAndGet();
-                    File mediaFile = new File(mediaStorageDir.getPath() + File.separator + timeStamp + ".jpg");
-
-                    try {
-                        FileOutputStream fos = new FileOutputStream(mediaFile);
-                        Log.d("ImageAvailable", "Saving");
-                        bm.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-                        fos.close();
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-
-                    SparseIntArray ORIENTATIONS = new SparseIntArray();
-                    ORIENTATIONS.append(0, ExifInterface.ORIENTATION_ROTATE_90);
-                    ORIENTATIONS.append(90, ExifInterface.ORIENTATION_NORMAL);
-                    ORIENTATIONS.append(180, ExifInterface.ORIENTATION_ROTATE_270);
-                    ORIENTATIONS.append(270, ExifInterface.ORIENTATION_ROTATE_180);
-
-                    try {
-                        ExifInterface exif = new ExifInterface(mediaFile.getPath());
-                        exif.setAttribute(ExifInterface.TAG_ORIENTATION, String.valueOf(ORIENTATIONS.get(rotate)));
-                        exif.saveAttributes();
-
-                        MediaScannerConnection.scanFile(mActivity, new String[]{mediaFile.getPath()}, null, null);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-
-                    Log.d("ImageAvailable", "Done");
-                    waiter.release();
-                    mActivity.afterCaptureAttempt();
-                }
-            }*/
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-}
+}*/

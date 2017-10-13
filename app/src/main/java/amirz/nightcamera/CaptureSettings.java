@@ -1,4 +1,4 @@
-package amirz.nightcamera;
+/*package amirz.nightcamera;
 
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraDevice;
@@ -24,7 +24,7 @@ public class CaptureSettings {
         for (Surface surface : surfaces)
             builder.addTarget(surface);
 
-        builder.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, (FullscreenActivity.useCamera == 0) ? CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_ON : CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_OFF);
+        //builder.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, (FullscreenActivity.useCamera == 0) ? CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_ON : CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_OFF);
 
         builder.set(CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE, CaptureRequest.COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY);
         builder.set(CaptureRequest.EDGE_MODE, CaptureRequest.EDGE_MODE_HIGH_QUALITY);
@@ -67,7 +67,7 @@ public class CaptureSettings {
     public static CaptureRequest.Builder getPreviewRequestBuilder(CameraDevice cameraDevice) throws CameraAccessException {
         CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_ZERO_SHUTTER_LAG);
 
-        builder.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, (FullscreenActivity.useCamera == 0) ? CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_ON : CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_OFF);
+        //builder.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, (FullscreenActivity.useCamera == 0) ? CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_ON : CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_OFF);
 
         //builder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_USE_SCENE_MODE);
         //builder.set(CaptureRequest.CONTROL_AE_MODE, CameraMetadata.CONTROL_AE_MODE_ON);
@@ -78,3 +78,4 @@ public class CaptureSettings {
         return builder;
     }
 }
+*/
