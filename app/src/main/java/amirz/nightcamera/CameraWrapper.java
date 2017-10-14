@@ -105,6 +105,8 @@ public class CameraWrapper {
                                         builder.addTarget(previewSurface); //preview screen
                                         builder.addTarget(zslQueue.previewReadSurface()); //ZSL saver
                                         builder.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, (useCamera == 0) ? CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_ON : CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_OFF);
+                                        builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, -1);
+                                        builder.set(CaptureRequest.CONTROL_SCENE_MODE, CaptureRequest.CONTROL_SCENE_MODE_HDR);
 
                                         captureSession.setRepeatingRequest(builder.build(), zslQueue, zslQueue.handler);
 

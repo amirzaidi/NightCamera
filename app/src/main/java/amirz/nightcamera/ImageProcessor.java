@@ -22,6 +22,7 @@ import android.support.media.ExifInterface;
 import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.Surface;
+import android.widget.Toast;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -90,7 +91,7 @@ public class ImageProcessor extends CameraFramesSaver {
 
     public void process(CameraWrapper camera, ImageData[] images) throws CameraAccessException {
         if (images.length != 0) {
-            Log.d(TAG, "Processing..");
+            Log.d(TAG, "Processing");
             images[0].burstEnd = true; //first because of the inverted order
             List<CaptureRequest> crs = new ArrayList<>();
 
@@ -146,7 +147,12 @@ public class ImageProcessor extends CameraFramesSaver {
 
         int width = imgs[0].getWidth();
         int height = imgs[0].getHeight();
-        /*int rowStride = imgs[0].getPlanes()[0].getRowStride();
+
+        int rowSize = 5000;
+        int[][][] roundBuf = new int[3][rowSize][3];
+        int[] out = new int[rowSize];
+
+        int rowStride = imgs[0].getPlanes()[0].getRowStride();
 
         ByteBuffer[][] buffers = new ByteBuffer[imgs.length][];
         for (int i = 0; i < imgs.length; i++) {
@@ -158,25 +164,23 @@ public class ImageProcessor extends CameraFramesSaver {
         }
         int buffer2limit = buffers[0][2].remaining();
 
-        Bitmap bm = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Bitmap bm = Bitmap.createBitmap(width - 2, height - 2, Bitmap.Config.ARGB_8888);
+        Log.d("ImageAvailable", "Processing");
 
-        int[]   Ys = new int[imgs.length],
-                Crs = new int[imgs.length],
-                Cbs = new int[imgs.length];
-
-        ByteBuffer[] imgBuff;
-        int Y, Cr = 0, Cb = 0, B, G, R;
+        int Y, Cr, Cb, tY, tCr = 0, tCb = 0, R, G, B;
         boolean evenX;
 
-        int[] out = new int[5000];
         for (int y = 0; y < height; y++) {
+            int saveY = y > 2 ? 2 : y;
             int jDiv2 = y >> 1;
             for (int x = 0; x < width; x++) {
                 evenX = (x & 0x1) == 0;
+                tY = 0;
+                if (evenX)
+                    tCr = tCb = 0;
 
                 for (int i = 0; i < imgs.length; i++) {
-                    imgBuff = buffers[i];
-                    Ys[i] = 0xFF & imgBuff[0].get(y * rowStride + x);
+                    tY += 0xFF & buffers[i][0].get(y * rowStride + x);
 
                     if (evenX) {
                         int cOff = jDiv2 * rowStride + (x >> 1) * 2;
@@ -185,80 +189,63 @@ public class ImageProcessor extends CameraFramesSaver {
                             buff = 1;
                             cOff -= buffer2limit;
                         }
-                        Cbs[i] = (0xFF & imgBuff[buff].get(cOff)) - 128;
+
+                        tCb += (0xFF & buffers[i][buff].get(cOff)) - 128;
 
                         buff = 2;
                         if (++cOff >= buffer2limit) {
                             buff = 1;
                             cOff -= buffer2limit;
                         }
-                        Crs[i] = (0xFF & imgBuff[buff].get(cOff)) - 128;
+
+                        tCr += (0xFF & buffers[i][buff].get(cOff)) - 128;
                     }
                 }
 
-                Y = (3 * Ys[0] + Ys[1]) >> 2;
+                roundBuf[saveY][x][0] = tY;
+                roundBuf[saveY][x][1] = tCb;
+                roundBuf[saveY][x][2] = tCr;
 
-                //Medians
-                if (evenX) {
-                    Arrays.sort(Cbs);
-                    Cb = Cbs[imgs.length / 2];
+                if (saveY == 2 && x > 1) {
+                    Y = roundBuf[1][x - 1][0];
+                    Cb = 0;
+                    Cr = 0;
 
-                    Arrays.sort(Crs);
-                    Cr = Crs[imgs.length / 2];
+                    Y *= 2;
+                    for (int dX = -1; dX <= 1; dX++)
+                        for (int dY = -1; dY <= 1; dY++)
+                            if ((dX | dY) != 0) {
+                                Y -= roundBuf[1 + dY][x + dX][0] >>> 3;
+                                Cb += roundBuf[1 + dY][x + dX][1];
+                                Cr += roundBuf[1 + dY][x + dX][2];
+                            }
+                    Cb /= 8;
+                    Cr /= 8;
+
+                    Y /= imgs.length;
+                    Cb /= imgs.length;
+                    Cr /= imgs.length;
+
+                    //YCbCr to RGB
+                    R = 1192*Y + 2066*Cb;
+                    G = 1192*Y - 833*Cr - 400*Cb;
+                    B = 1192*Y + 1634*Cr;
+
+                    R = Math.min(Math.max(R >> 10, 0), 0xFF);
+                    G = Math.min(Math.max(G >> 10, 0), 0xFF);
+                    B = Math.min(Math.max(B >> 10, 0), 0xFF);
+
+                    out[x] = 0xFF000000 | (R << 16) | (G << 8) | B;
                 }
-
-                //YCbCr to RGB
-                R = 1192*Y + 2066*Cb;
-                //G = 1192*Y - 833*Cr - 400*Cb;
-                G = 1192*Y - 833*Cr - 400*Cb; //Better colour balance
-                B = 1192*Y + 1634*Cr;
-
-                R = Math.min(Math.max(R >> 10, 0), 0xFF);
-                G = Math.min(Math.max(G >> 10, 0), 0xFF);
-                B = Math.min(Math.max(B >> 10, 0), 0xFF);
-                out[x] = 0xFF000000 | (R << 16) | (G << 8) | B;
             }
-
-            bm.setPixels(out, 0, width, 0, y, width, 1);
-        }*/
-
-        Image.Plane[] planes = imgs[0].getPlanes();
-
-        ByteBuffer yBuffer = planes[0].getBuffer();
-        ByteBuffer uBuffer = planes[1].getBuffer();
-        ByteBuffer vBuffer = planes[2].getBuffer();
-
-        final int yRowStride = planes[0].getRowStride();
-        final int uvRowStride = planes[1].getRowStride();
-
-        final byte[] nv21 = new byte[(yRowStride + 2 * uvRowStride) * height];
-
-        Bitmap bmFinal = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bmFinal);
-
-        Paint paint = new Paint();
-        paint.setAlpha(Math.min(300 / images.length, 255));
-
-        for (int i = 0; i < images.length; i++) {
-            yBuffer.get(nv21, 0, yBuffer.remaining());
-            vBuffer.get(nv21, yRowStride * height, vBuffer.remaining()); //U and V are swapped
-            uBuffer.get(nv21, (yRowStride + uvRowStride) * height, uBuffer.remaining());
-
-            YuvImage yuv = new YuvImage(nv21, ImageFormat.NV21, width, height, new int[] { yRowStride, uvRowStride });
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            yuv.compressToJpeg(new Rect(0, 0, width, height), 100, out);
-            byte[] imageBytes = out.toByteArray();
-            Bitmap bm = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
-            Matrix m = new Matrix();
-            //m.postScale(1f - (float)i / 100f, 1f - (float)i / 100f, width / 2, height / 2);
-            canvas.drawBitmap(bm, m, paint);
-            bm.recycle();
+            if (saveY == 2) {
+                bm.setPixels(out, 0, width - 2, 0, y - 2, width - 2, 1);
+                int[][] temp = roundBuf[2];
+                roundBuf[2] = roundBuf[0];
+                roundBuf[0] = roundBuf[1];
+                roundBuf[1] = temp;
+            }
         }
-
-        Log.d("ImageAvailable", "Processing 2");
-
-        for (int i = 0; i < imgs.length; i++)
-            imgs[i].close();
 
         File mediaStorageDir = new File(Environment.getExternalStorageDirectory() + "/DCIM/Camera");
         String timeStamp = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss").format(new Date()) + "_" + counter.incrementAndGet();
@@ -266,9 +253,9 @@ public class ImageProcessor extends CameraFramesSaver {
 
         try {
             FileOutputStream fos = new FileOutputStream(mediaFile);
+
             Log.d("ImageAvailable", "Saving");
-            //fos.write(imageBytes);
-            bmFinal.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+            bm.compress(Bitmap.CompressFormat.JPEG, 100, fos);
             fos.close();
         } catch (Exception e) {
             e.printStackTrace();
@@ -291,6 +278,13 @@ public class ImageProcessor extends CameraFramesSaver {
         }
 
         Log.d("ImageAvailable", "Done");
+
+        activity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(activity, "Saved", Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     @Override

@@ -59,7 +59,7 @@ public class CaptureSettings {
         return requests;
     }*/
 
-    private static void setSaturation(CaptureRequest.Builder builder, int saturation) {
+    public static void setSaturation(CaptureRequest.Builder builder, int saturation) {
         try {
             Class classInfo = CaptureRequest.Key.class;
             Constructor<?> construct = classInfo.getConstructor(String.class, Class.class);

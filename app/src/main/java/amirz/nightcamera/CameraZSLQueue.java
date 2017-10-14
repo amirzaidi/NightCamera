@@ -9,13 +9,14 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Size;
 import android.view.Surface;
+import android.widget.Toast;
 
 public class CameraZSLQueue extends CameraFramesSaver {
     private final static String TAG = "ZSLQueue";
 
     public final static int imageSaveCount = 35; //real buffer for previewSurfaceReader
 
-    public final static int imageReprocessCount = 1; //50-100ms of data to reprocess
+    public final static int imageReprocessCount = 3; //50-100ms of data to reprocess
     public final static int tempResultsBufferCount = 5; //intermediate to sync capture result and image buffer
 
     private ImageReader previewSurfaceReader;
@@ -82,6 +83,12 @@ public class CameraZSLQueue extends CameraFramesSaver {
             @Override
             public void run() {
                 try {
+                    activity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(activity, "Processing..", Toast.LENGTH_SHORT).show();
+                        }
+                    });
                     processor.process(activity.camera, pullEntireQueue());
                     activity.setUIEnabled(true);
                 }
