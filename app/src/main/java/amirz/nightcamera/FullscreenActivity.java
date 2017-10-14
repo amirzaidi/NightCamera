@@ -13,10 +13,13 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.widget.FrameLayout;
 
 import static android.support.v4.app.NotificationCompat.PRIORITY_MAX;
 
@@ -62,7 +65,6 @@ public class FullscreenActivity extends AppCompatActivity {
         final FullscreenActivity instance = this;
 
         motionTracker = new MotionTracker(this);
-        motionTracker.start();
 
         try {
             camera = new CameraWrapper(this);
@@ -74,8 +76,6 @@ public class FullscreenActivity extends AppCompatActivity {
         switcher = (FloatingActionButton) findViewById(R.id.switcher);
         shutter = (FloatingActionButton) findViewById(R.id.shutter);
         video = (FloatingActionButton) findViewById(R.id.video);
-
-        pathFinder = new PathFinder((TextureView) findViewById(R.id.pathfinder), this);
 
         switcher.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -131,22 +131,31 @@ public class FullscreenActivity extends AppCompatActivity {
         });
     }
 
-    /*@Override
+    private TextureView tv;
+
+    @Override
     protected void onResume() {
         super.onResume();
+        motionTracker.start();
+
+        tv = new TextureView(this);
+        addContentView(tv, new ViewGroup.LayoutParams(1080, 1440));
+
+        pathFinder = new PathFinder(tv, this);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-    }*/
+        camera.closeCamera();
+        motionTracker.stop();
+
+        ((ViewGroup) tv.getParent()).removeView(tv);
+    }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-
-        camera.closeCamera();
-        motionTracker.stop();
 
         if (camera != null) {
             camera.closeCamera();

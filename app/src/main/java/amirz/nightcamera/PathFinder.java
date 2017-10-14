@@ -18,12 +18,9 @@ public class PathFinder {
     private View.OnTouchListener touchListener;
     private TextureView.SurfaceTextureListener textureListener;
 
-    public TextureView textureView;
     public Surface previewSurface;
-    public SurfaceTexture previewSurfaceTexture;
 
     public PathFinder(TextureView view, final FullscreenActivity activity) {
-        textureView = view;
         gestureDetector =  new GestureDetector(activity, new GestureDetector.SimpleOnGestureListener() {
             private static final int SWIPE_THRESHOLD = 100;
             private static final int SWIPE_VELOCITY_THRESHOLD = 100;
@@ -72,11 +69,9 @@ public class PathFinder {
 
             @Override
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-                previewSurfaceTexture = surface;
-                previewSurfaceTexture.setDefaultBufferSize(1440, 1080);
+                surface.setDefaultBufferSize(1440, 1080);
                 previewSurface = new Surface(surface);
-                activity.camera.openCamera(0, previewSurface);
-                Log.d("PathFinder", "Size " + width + " " + height);
+                activity.camera.openCamera(activity.useCamera, previewSurface);
             }
 
             @Override

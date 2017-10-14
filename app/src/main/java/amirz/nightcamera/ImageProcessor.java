@@ -2,6 +2,13 @@ package amirz.nightcamera;
 
 import android.content.Context;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.ImageFormat;
+import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CaptureRequest;
 import android.media.Image;
@@ -16,6 +23,7 @@ import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.Surface;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
@@ -87,7 +95,7 @@ public class ImageProcessor extends CameraFramesSaver {
             List<CaptureRequest> crs = new ArrayList<>();
 
             for (int i = images.length - 1; i >= 0; i--) {
-                CaptureRequest.Builder b = camera.cameraDevice.createReprocessCaptureRequest(images[i].result);
+                CaptureRequest.Builder b = CaptureSettings.getReprocessRequestBuilder(camera.cameraDevice, images[i]);
                 b.addTarget(reprocessedReader.getSurface());
                 b.setTag(images[i]);
                 crs.add(b.build());
@@ -138,7 +146,7 @@ public class ImageProcessor extends CameraFramesSaver {
 
         int width = imgs[0].getWidth();
         int height = imgs[0].getHeight();
-        int rowStride = imgs[0].getPlanes()[0].getRowStride();
+        /*int rowStride = imgs[0].getPlanes()[0].getRowStride();
 
         ByteBuffer[][] buffers = new ByteBuffer[imgs.length][];
         for (int i = 0; i < imgs.length; i++) {
@@ -212,6 +220,39 @@ public class ImageProcessor extends CameraFramesSaver {
             }
 
             bm.setPixels(out, 0, width, 0, y, width, 1);
+        }*/
+
+        Image.Plane[] planes = imgs[0].getPlanes();
+
+        ByteBuffer yBuffer = planes[0].getBuffer();
+        ByteBuffer uBuffer = planes[1].getBuffer();
+        ByteBuffer vBuffer = planes[2].getBuffer();
+
+        final int yRowStride = planes[0].getRowStride();
+        final int uvRowStride = planes[1].getRowStride();
+
+        final byte[] nv21 = new byte[(yRowStride + 2 * uvRowStride) * height];
+
+        Bitmap bmFinal = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bmFinal);
+
+        Paint paint = new Paint();
+        paint.setAlpha(Math.min(300 / images.length, 255));
+
+        for (int i = 0; i < images.length; i++) {
+            yBuffer.get(nv21, 0, yBuffer.remaining());
+            vBuffer.get(nv21, yRowStride * height, vBuffer.remaining()); //U and V are swapped
+            uBuffer.get(nv21, (yRowStride + uvRowStride) * height, uBuffer.remaining());
+
+            YuvImage yuv = new YuvImage(nv21, ImageFormat.NV21, width, height, new int[] { yRowStride, uvRowStride });
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            yuv.compressToJpeg(new Rect(0, 0, width, height), 100, out);
+            byte[] imageBytes = out.toByteArray();
+            Bitmap bm = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.length);
+            Matrix m = new Matrix();
+            //m.postScale(1f - (float)i / 100f, 1f - (float)i / 100f, width / 2, height / 2);
+            canvas.drawBitmap(bm, m, paint);
+            bm.recycle();
         }
 
         Log.d("ImageAvailable", "Processing 2");
@@ -226,7 +267,8 @@ public class ImageProcessor extends CameraFramesSaver {
         try {
             FileOutputStream fos = new FileOutputStream(mediaFile);
             Log.d("ImageAvailable", "Saving");
-            bm.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+            //fos.write(imageBytes);
+            bmFinal.compress(Bitmap.CompressFormat.JPEG, 100, fos);
             fos.close();
         } catch (Exception e) {
             e.printStackTrace();
@@ -247,6 +289,8 @@ public class ImageProcessor extends CameraFramesSaver {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        Log.d("ImageAvailable", "Done");
     }
 
     @Override

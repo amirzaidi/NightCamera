@@ -104,6 +104,7 @@ public class CameraWrapper {
                                         CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_ZERO_SHUTTER_LAG);
                                         builder.addTarget(previewSurface); //preview screen
                                         builder.addTarget(zslQueue.previewReadSurface()); //ZSL saver
+                                        builder.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, (useCamera == 0) ? CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_ON : CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_OFF);
 
                                         captureSession.setRepeatingRequest(builder.build(), zslQueue, zslQueue.handler);
 

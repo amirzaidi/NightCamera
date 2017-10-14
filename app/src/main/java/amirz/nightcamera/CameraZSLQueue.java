@@ -13,9 +13,9 @@ import android.view.Surface;
 public class CameraZSLQueue extends CameraFramesSaver {
     private final static String TAG = "ZSLQueue";
 
-    public final static int imageSaveCount = 30; //real buffer for previewSurfaceReader
+    public final static int imageSaveCount = 35; //real buffer for previewSurfaceReader
 
-    public final static int imageReprocessCount = 3; //50-100ms of data to reprocess
+    public final static int imageReprocessCount = 1; //50-100ms of data to reprocess
     public final static int tempResultsBufferCount = 5; //intermediate to sync capture result and image buffer
 
     private ImageReader previewSurfaceReader;

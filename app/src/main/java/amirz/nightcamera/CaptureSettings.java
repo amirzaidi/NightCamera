@@ -1,5 +1,6 @@
-/*package amirz.nightcamera;
+package amirz.nightcamera;
 
+import android.graphics.Camera;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraMetadata;
@@ -17,7 +18,13 @@ import java.util.List;
 public class CaptureSettings {
     public static TotalCaptureResult previewResult;
 
-    public static ArrayList<CaptureRequest> getCaptureRequests(CameraDevice cameraDevice, List<Surface> surfaces) throws CameraAccessException {
+    public static CaptureRequest.Builder getReprocessRequestBuilder(CameraDevice device, ImageData imageData) throws CameraAccessException {
+        CaptureRequest.Builder b = device.createReprocessCaptureRequest(imageData.result);
+        setSaturation(b, 0);
+        return b;
+    }
+
+    /*public static ArrayList<CaptureRequest> getCaptureRequests(CameraDevice cameraDevice, List<Surface> surfaces) throws CameraAccessException {
         ArrayList<CaptureRequest> requests = new ArrayList<>();
 
         CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
@@ -50,7 +57,7 @@ public class CaptureSettings {
         requests.add(builder.build());
 
         return requests;
-    }
+    }*/
 
     private static void setSaturation(CaptureRequest.Builder builder, int saturation) {
         try {
@@ -78,4 +85,3 @@ public class CaptureSettings {
         return builder;
     }
 }
-*/
