@@ -14,7 +14,7 @@ public class CameraZSLQueue extends CameraFramesSaver {
 
     public final static int imageSaveCount = 35; //real buffer for previewSurfaceReader
 
-    public final static int imageReprocessCount = 3; //50-100ms of data to reprocess
+    public final static int imageReprocessCount = 7; //data to reprocess
     public final static int tempResultsBufferCount = 5; //intermediate to sync capture result and image buffer
 
     private ImageReader surfaceReader;
@@ -27,7 +27,7 @@ public class CameraZSLQueue extends CameraFramesSaver {
     private HandlerThread shutterThread;
     public Handler shutterHandler;
 
-    public CameraZSLQueue(FullscreenActivity activity, CameraCharacteristics cameraCharacteristics, CameraFormatSize cameraFormatSize) {
+    public CameraZSLQueue(FullscreenActivity activity, CameraFormatSize cameraFormatSize, CameraCharacteristics cameraCharacteristics) {
         super(imageReprocessCount, tempResultsBufferCount);
 
         surfaceReader = ImageReader.newInstance(
@@ -47,9 +47,9 @@ public class CameraZSLQueue extends CameraFramesSaver {
         shutterHandler = new Handler(shutterThread.getLooper());
 
         if (cameraFormatSize.format == ImageFormat.RAW_SENSOR)
-            processor = new PostProcessorRAW(activity, cameraCharacteristics);
+            processor = new PostProcessorRAW(activity, cameraFormatSize, cameraCharacteristics);
         else if (cameraFormatSize.format == ImageFormat.YUV_420_888)
-            processor = new PostProcessorYUV(activity);
+            processor = new PostProcessorYUV(activity, cameraFormatSize);
     }
 
     public Surface getReadSurface() {

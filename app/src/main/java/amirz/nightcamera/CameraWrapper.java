@@ -11,6 +11,7 @@ import android.hardware.camera2.CaptureRequest;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
+import android.util.Range;
 import android.view.Surface;
 
 import java.util.Arrays;
@@ -73,7 +74,7 @@ public class CameraWrapper {
             @Override
             public void onOpened(final CameraDevice camera) {
                 cameraDevice = camera;
-                zslQueue = new CameraZSLQueue(mActivity, cameraCharacteristics[useCamera], cameraFormatSizes[useCamera]);
+                zslQueue = new CameraZSLQueue(mActivity, cameraFormatSizes[useCamera], cameraCharacteristics[useCamera]);
                 try {
                     cameraDevice.createCaptureSession(
                             Arrays.asList(previewSurface, zslQueue.getReadSurface()),

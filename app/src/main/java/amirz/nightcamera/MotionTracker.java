@@ -10,7 +10,6 @@ import android.os.SystemClock;
 import java.util.ArrayList;
 
 public class MotionTracker {
-    private Context mContext;
     private SensorManager mSensorManager;
     private Sensor mGravitySensor;
     private Sensor mLinearSensor;
@@ -33,7 +32,6 @@ public class MotionTracker {
     private float[] mMovement = new float[3];
 
     public MotionTracker(Context context) {
-        mContext = context;
         mSensorManager = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
         mGravitySensor = mSensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
         mLinearSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);

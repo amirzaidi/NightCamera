@@ -13,8 +13,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class PostProcessor {
-
-    private final static String TAG = "Processor";
+    private final static String TAG = PostProcessor.class.getName();
 
     public final static int maxConcurrentProcessing = 3;
     public Semaphore waiter = new Semaphore(maxConcurrentProcessing - 1);
@@ -24,9 +23,11 @@ public abstract class PostProcessor {
     public Handler handler;
 
     protected FullscreenActivity activity;
+    protected CameraFormatSize cameraFormatSize;
 
-    public PostProcessor(FullscreenActivity activity) {
+    public PostProcessor(FullscreenActivity activity, CameraFormatSize cameraFormatSize) {
         this.activity = activity;
+        this.cameraFormatSize = cameraFormatSize;
 
         thread = new HandlerThread(TAG);
         thread.start();
@@ -49,11 +50,11 @@ public abstract class PostProcessor {
         }
     }
 
-    protected String getSavePath(String extention) {
+    protected String getSavePath(String extension) {
         File folder = new File(Environment.getExternalStorageDirectory() + "/DCIM/NightCamera");
         if (!folder.exists() && !folder.mkdir())
             throw new RuntimeException("Cannot create /DCIM/NightCamera");
-        return folder.getPath()+ File.separator + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss").format(new Date()) + "_" + counter.incrementAndGet() + "." + extention;
+        return folder.getPath()+ File.separator + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss").format(new Date()) + "_" + counter.incrementAndGet() + "." + extension;
     }
 
     protected abstract String[] internalProcessAndSave(ImageData[] images);

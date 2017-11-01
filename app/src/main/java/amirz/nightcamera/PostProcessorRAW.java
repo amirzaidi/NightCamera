@@ -10,7 +10,7 @@ import java.io.IOException;
 
 public class PostProcessorRAW extends PostProcessor {
     private static SparseIntArray ORIENTATIONS = new SparseIntArray();
-    static {
+    static { //Regular camera
         ORIENTATIONS.append(0, ExifInterface.ORIENTATION_ROTATE_90);
         ORIENTATIONS.append(90, ExifInterface.ORIENTATION_NORMAL);
         ORIENTATIONS.append(180, ExifInterface.ORIENTATION_ROTATE_270);
@@ -19,8 +19,8 @@ public class PostProcessorRAW extends PostProcessor {
 
     private CameraCharacteristics characteristics;
 
-    public PostProcessorRAW(FullscreenActivity activity, CameraCharacteristics characteristics) {
-        super(activity);
+    public PostProcessorRAW(FullscreenActivity activity, CameraFormatSize cameraFormatSize, CameraCharacteristics characteristics) {
+        super(activity, cameraFormatSize);
         this.characteristics = characteristics;
     }
 
