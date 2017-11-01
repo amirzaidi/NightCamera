@@ -10,7 +10,6 @@ public class ImageData {
     public long timestamp;
     public MotionSnapshot motion;
     public Image image;
-    public boolean burstEnd = false;
 
     public void close() {
         if (image != null)

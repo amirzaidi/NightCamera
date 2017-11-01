@@ -7,7 +7,6 @@ import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.media.Image;
 import android.media.ImageReader;
-import android.util.Log;
 
 import java.util.LinkedList;
 
@@ -25,22 +24,20 @@ public abstract class CameraFramesSaver extends CameraCaptureSession.CaptureCall
     }
 
     @Override
-    public void onCaptureStarted(CameraCaptureSession session, CaptureRequest request, long timestamp, long frameNumber) {
-        synchronized (imageQueue) {
-            for (ImageData temp : tempResults)
-                if (temp.timestamp == timestamp) {
-                    temp.motion = motionSnapshot(request);
-                    return;
-                }
+    public synchronized void onCaptureStarted(CameraCaptureSession session, CaptureRequest request, long timestamp, long frameNumber) {
+        for (ImageData temp : tempResults)
+            if (temp.timestamp == timestamp) {
+                temp.motion = motionSnapshot(request);
+                return;
+            }
 
-            ImageData data = new ImageData();
-            data.timestamp = timestamp;
-            data.motion = motionSnapshot(request);
+        ImageData data = new ImageData();
+        data.timestamp = timestamp;
+        data.motion = motionSnapshot(request);
 
-            tempResults.addLast(data);
-            if (tempResults.size() > tempResultsBufferCount)
-                tempResults.removeFirst().close();
-        }
+        tempResults.addLast(data);
+        if (tempResults.size() > tempResultsBufferCount)
+            tempResults.removeFirst().close();
     }
 
     @Override
@@ -48,18 +45,16 @@ public abstract class CameraFramesSaver extends CameraCaptureSession.CaptureCall
     }
 
     @Override
-    public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
+    public synchronized void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
         long stamp = result.get(CaptureResult.SENSOR_TIMESTAMP);
-        synchronized (imageQueue) {
-            for (ImageData temp : tempResults)
-                if (temp.timestamp == stamp) {
-                    temp.request = request;
-                    temp.result = result;
-                    if (temp.image != null)
-                        moveToQueue(temp);
-                    break;
-                }
-        }
+        for (ImageData temp : tempResults)
+            if (temp.timestamp == stamp) {
+                temp.request = request;
+                temp.result = result;
+                if (temp.image != null)
+                    moveToQueue(temp);
+                break;
+            }
     }
 
     @Override
@@ -68,24 +63,22 @@ public abstract class CameraFramesSaver extends CameraCaptureSession.CaptureCall
     }
 
     @Override
-    public void onImageAvailable(ImageReader imageReader) {
+    public synchronized void onImageAvailable(ImageReader imageReader) {
         Image img = imageReader.acquireNextImage();
         if (img != null) {
             long stamp = img.getTimestamp();
-            synchronized (imageQueue) {
-                for (ImageData temp : tempResults)
-                    if (temp.timestamp == stamp) {
-                        temp.image = img;
-                        if (temp.result != null)
-                            moveToQueue(temp);
-                        return;
-                    }
+            for (ImageData temp : tempResults)
+                if (temp.timestamp == stamp) {
+                    temp.image = img;
+                    if (temp.result != null)
+                        moveToQueue(temp);
+                    return;
+                }
 
-                ImageData temp = new ImageData();
-                temp.timestamp = stamp;
-                temp.image = img;
-                tempResults.addLast(temp);
-            }
+            ImageData temp = new ImageData();
+            temp.timestamp = stamp;
+            temp.image = img;
+            tempResults.addLast(temp);
         } else {
             throw new RuntimeException("Null Image");
         }
@@ -103,12 +96,10 @@ public abstract class CameraFramesSaver extends CameraCaptureSession.CaptureCall
             imageQueue.removeFirst().close();
     }
 
-    protected ImageData[] pullEntireQueue() {
-        synchronized (imageQueue) {
-            ImageData[] images = imageQueue.toArray(new ImageData[imageQueueCount()]);
-            imageQueue.clear();
-            return images;
-        }
+    protected synchronized ImageData[] pullEntireQueue() {
+        ImageData[] images = imageQueue.toArray(new ImageData[imageQueueCount()]);
+        imageQueue.clear();
+        return images;
     }
 
     protected abstract MotionSnapshot motionSnapshot(CaptureRequest request);

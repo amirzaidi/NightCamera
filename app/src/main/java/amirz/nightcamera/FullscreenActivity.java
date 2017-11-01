@@ -1,27 +1,19 @@
 package amirz.nightcamera;
 
 import android.Manifest;
-import android.app.NotificationManager;
-import android.app.PendingIntent;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.hardware.camera2.CameraAccessException;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.NotificationCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.view.Gravity;
-import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AccelerateDecelerateInterpolator;
-import android.widget.FrameLayout;
-
-import static android.support.v4.app.NotificationCompat.PRIORITY_MAX;
+import android.widget.Toast;
 
 public class FullscreenActivity extends AppCompatActivity {
 
@@ -77,6 +69,8 @@ public class FullscreenActivity extends AppCompatActivity {
         shutter = (FloatingActionButton) findViewById(R.id.shutter);
         video = (FloatingActionButton) findViewById(R.id.video);
 
+        setUIEnabled(false);
+
         switcher.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -123,7 +117,7 @@ public class FullscreenActivity extends AppCompatActivity {
             @Override
             public void run() {
                 shutter.setEnabled(enabled);
-                int toScale = enabled ? 1 : 0;
+                float toScale = enabled ? 1 : 0.25f;
                 shutter.animate().scaleX(toScale).scaleY(toScale).setDuration(200).setInterpolator(new AccelerateDecelerateInterpolator()).start();
                 video.setEnabled(enabled);
                 switcher.setEnabled(enabled);
@@ -162,5 +156,15 @@ public class FullscreenActivity extends AppCompatActivity {
             camera.close();
             camera = null;
         }
+    }
+
+    public void toast(final String message) {
+        final Context c = this;
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(c, message, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 }
