@@ -33,14 +33,15 @@ public class PostProcessorRAW extends PostProcessor {
             DngCreator dngCreator = new DngCreator(characteristics, img.result);
             try {
                 FileOutputStream output = new FileOutputStream(files[i++]);
-                dngCreator.writeImage(output, img.image);
+                dngCreator.writeByteBuffer(output, cameraFormatSize.size, img.plane(0), 0);
                 output.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
+            dngCreator.setDescription("Shot on NightCamera");
             dngCreator.setOrientation(ORIENTATIONS.get(img.motion.mRot));
             dngCreator.close();
+            break; //To prevent spam for now
         }
         return files;
     }

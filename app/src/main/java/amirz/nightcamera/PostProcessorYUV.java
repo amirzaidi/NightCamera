@@ -1,7 +1,6 @@
 package amirz.nightcamera;
 
 import android.graphics.Bitmap;
-import android.media.Image;
 import android.support.media.ExifInterface;
 import android.util.Log;
 import android.util.SparseIntArray;
@@ -25,46 +24,35 @@ public class PostProcessorYUV extends PostProcessor {
 
     @Override
     protected String[] internalProcessAndSave(ImageData[] images) {
-        int rotate = images[images.length - 1].motion.mRot;
+        final int rotate = images[images.length - 1].motion.mRot;
 
-        Image[] imgs = new Image[images.length];
+        final int width = images[0].image.getWidth();
+        final int height = images[0].image.getHeight();
+
+        //Something weird near the edges
+        final int cutOff = 8;
+
+        ByteBuffer[][] buffers = new ByteBuffer[images.length][];
         for (int i = 0; i < images.length; i++)
-            imgs[i] = images[i].image;
+            buffers[i] = new ByteBuffer[] { images[i].plane(0), images[i].plane(1), images[i].plane(2) };
 
-        int width = imgs[0].getWidth();
-        int height = imgs[0].getHeight();
-
-        int rowStride = imgs[0].getPlanes()[0].getRowStride();
-
-        ByteBuffer[][] buffers = new ByteBuffer[imgs.length][];
-        for (int i = 0; i < imgs.length; i++) {
-            Image.Plane[] planes = imgs[i].getPlanes();
-            buffers[i] = new ByteBuffer[planes.length];
-
-            for (int j = 0; j < planes.length; j++)
-                buffers[i][j] = planes[j].getBuffer();
-        }
+        int rowStride = images[0].image.getPlanes()[0].getRowStride();
         int buffer2limit = buffers[0][2].remaining();
 
-        int Cr, Cb, tY, tCr = 0, tCb = 0, R, G, B;
+        double R = 0, G = 0, B = 0, LowBound = 0, HighBound = 0, Y, Cb = 0, Cr = 0;
         boolean evenX;
 
         //Start processing
-        int rowSize = cameraFormatSize.size.getWidth();
-        int[] out = new int[rowSize];
+        Bitmap bm = Bitmap.createBitmap(width - cutOff, height - cutOff, Bitmap.Config.ARGB_8888);
+        int[] out = new int[width];
 
-        Bitmap bm = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-
-        for (int y = 0; y < height; y++) {
+        for (int y = 0; y < height - cutOff; y++) {
             int jDiv2 = y >> 1;
-            for (int x = 0; x < width; x++) {
+            for (int x = 0; x < width - cutOff; x++) {
                 evenX = (x & 0x1) == 0;
-                tY = 0;
-                if (evenX)
-                    tCr = tCb = 0;
-
-                for (int i = 0; i < imgs.length; i++) {
-                    tY += 0xFF & buffers[i][0].get(y * rowStride + x);
+                Y = 0;
+                for (int i = 0; i < images.length; i++) {
+                    Y += 0xFF & buffers[i][0].get(y * rowStride + x);
                     if (evenX) {
                         int cOff = jDiv2 * rowStride + (x >> 1) * 2;
                         int buff = 2;
@@ -72,30 +60,35 @@ public class PostProcessorYUV extends PostProcessor {
                             buff = 1;
                             cOff %= buffer2limit;
                         }
-                        tCb += (0xFF & buffers[i][buff].get(cOff)) - 128;
+                        Cb += 0xFF & buffers[i][buff].get(cOff);
 
                         buff = 2;
                         if (++cOff >= buffer2limit) {
                             buff = 1;
                             cOff %= buffer2limit;
                         }
-                        tCr += (0xFF & buffers[i][buff].get(cOff)) - 128;
+                        Cr += 0xFF & buffers[i][buff].get(cOff);
                     }
                 }
 
-                tY = tY * 1192 / imgs.length;
-                Cb = tCb / imgs.length;
-                Cr = tCr / imgs.length;
+                if (evenX) {
+                    Cb = Cb / images.length - 128;
+                    Cr = Cr / images.length - 128;
 
-                //YCbCr to RGB
-                R = Math.min(Math.max(tY + 2066*Cb >> 10, 0), 0xFF);
-                G = Math.min(Math.max(tY - 833*Cr - 400*Cb >> 10, 0), 0xFF);
-                B = Math.min(Math.max(tY + 1634*Cr >> 10, 0), 0xFF);
+                    R = 1.402 * Cb;
+                    G = -0.34414 * Cr - 0.71414 * Cb;
+                    B = 1.772 * Cr;
 
-                out[x] = 0xFF000000 | (R << 16) | (G << 8) | B;
+                    LowBound = Math.max(-R, Math.max(-G, -B));
+                    HighBound = Math.min(255 + R, Math.min(255 + G, 255 + B));
+                } else
+                    Cb = Cr = 0; //Reset for next loop
+
+                Y = Math.min(HighBound, Math.max(LowBound, Y / images.length));
+                out[x] = 0xFF000000 | ((int)(Y + R) << 16) | ((int)(Y + G) << 8) | (int)(Y + B);
             }
 
-            bm.setPixels(out, 0, width, 0, y, width, 1);
+            bm.setPixels(out, 0, width - cutOff, 0, y, width - cutOff, 1);
         }
 
         String mediaFile = getSavePath("jpeg");
@@ -111,7 +104,6 @@ public class PostProcessorYUV extends PostProcessor {
             e.printStackTrace();
         }
 
-        Log.d("Yuv", "Saved");
         return new String[] { mediaFile };
     }
 }

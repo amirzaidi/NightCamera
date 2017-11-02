@@ -11,7 +11,6 @@ import android.hardware.camera2.CaptureRequest;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
-import android.util.Range;
 import android.view.Surface;
 
 import java.util.Arrays;
@@ -54,67 +53,60 @@ public class CameraWrapper {
     }
 
     public void openCamera(final int useCamera, final Surface previewSurface) {
-        handler.post(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    openCameraInternal(useCamera, previewSurface);
-                } catch (SecurityException e) {
-                    e.printStackTrace();
-                } catch (CameraAccessException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-    }
+        try {
+            closeCamera();
+            cameraManager.openCamera(cameras[useCamera], new CameraDevice.StateCallback() {
+                @Override
+                public void onOpened(final CameraDevice camera) {
+                    cameraDevice = camera;
+                    int reprocCount = 7 - useCamera * 4; //3 if selfie
+                    zslQueue = new CameraZSLQueue(mActivity, reprocCount, cameraFormatSizes[useCamera], cameraCharacteristics[useCamera]);
+                    try {
+                        final CaptureRequest crp;
+                        if (useCamera == 0)
+                            crp = CameraRequestPreset.rawZsl(cameraDevice, previewSurface, zslQueue.getReadSurface());
+                        else
+                            crp = CameraRequestPreset.yuvZsl(cameraDevice, previewSurface, zslQueue.getReadSurface());
 
-    private void openCameraInternal(final int useCamera, final Surface previewSurface) throws CameraAccessException, SecurityException {
-        closeCamera();
-        cameraManager.openCamera(cameras[useCamera], new CameraDevice.StateCallback() {
-            @Override
-            public void onOpened(final CameraDevice camera) {
-                cameraDevice = camera;
-                zslQueue = new CameraZSLQueue(mActivity, cameraFormatSizes[useCamera], cameraCharacteristics[useCamera]);
-                try {
-                    cameraDevice.createCaptureSession(
-                            Arrays.asList(previewSurface, zslQueue.getReadSurface()),
-                            new CameraCaptureSession.StateCallback() {
-                                @Override
-                                public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
-                                    captureSession = cameraCaptureSession;
-                                    try {
-                                        CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_ZERO_SHUTTER_LAG);
-                                        builder.addTarget(previewSurface); //preview screen
-                                        builder.addTarget(zslQueue.getReadSurface()); //ZSL saver
-                                        builder.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, 1 - useCamera);
-
-                                        captureSession.setRepeatingRequest(builder.build(), zslQueue, zslQueue.handler);
-                                        mActivity.setUIEnabled(true);
-                                    } catch (CameraAccessException e) {
-                                        e.printStackTrace();
+                        cameraDevice.createCaptureSession(
+                                Arrays.asList(previewSurface, zslQueue.getReadSurface()),
+                                new CameraCaptureSession.StateCallback() {
+                                    @Override
+                                    public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+                                        captureSession = cameraCaptureSession;
+                                        try {
+                                            captureSession.setRepeatingRequest(crp, zslQueue, zslQueue.handler);
+                                            mActivity.setUIEnabled(true);
+                                        } catch (CameraAccessException e) {
+                                            e.printStackTrace();
+                                        }
                                     }
-                                }
 
-                                @Override
-                                public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
-                                }
-                            }, null);
+                                    @Override
+                                    public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+                                    }
+                                }, null);
+                    }
+                    catch (CameraAccessException e) {
+                        e.printStackTrace();
+                    }
                 }
-                catch (CameraAccessException e) {
-                    e.printStackTrace();
+
+                @Override
+                public void onDisconnected(CameraDevice camera) {
+                    closeCamera();
                 }
-            }
 
-            @Override
-            public void onDisconnected(CameraDevice camera) {
-                closeCamera();
-            }
-
-            @Override
-            public void onError(CameraDevice camera, int error) {
-                closeCamera();
-            }
-        }, null);
+                @Override
+                public void onError(CameraDevice camera, int error) {
+                    closeCamera();
+                }
+            }, handler);
+        } catch (SecurityException e) {
+            e.printStackTrace();
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
     }
 
     public void closeCamera() {

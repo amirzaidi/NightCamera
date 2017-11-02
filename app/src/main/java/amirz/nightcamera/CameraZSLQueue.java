@@ -13,8 +13,6 @@ public class CameraZSLQueue extends CameraFramesSaver {
     private final static String TAG = "ZSLQueue";
 
     public final static int imageSaveCount = 35; //real buffer for previewSurfaceReader
-
-    public final static int imageReprocessCount = 7; //data to reprocess
     public final static int tempResultsBufferCount = 5; //intermediate to sync capture result and image buffer
 
     private ImageReader surfaceReader;
@@ -27,7 +25,7 @@ public class CameraZSLQueue extends CameraFramesSaver {
     private HandlerThread shutterThread;
     public Handler shutterHandler;
 
-    public CameraZSLQueue(FullscreenActivity activity, CameraFormatSize cameraFormatSize, CameraCharacteristics cameraCharacteristics) {
+    public CameraZSLQueue(FullscreenActivity activity, int imageReprocessCount, CameraFormatSize cameraFormatSize, CameraCharacteristics cameraCharacteristics) {
         super(imageReprocessCount, tempResultsBufferCount);
 
         surfaceReader = ImageReader.newInstance(
