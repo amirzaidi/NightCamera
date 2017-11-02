@@ -1,8 +1,11 @@
 package amirz.nightcamera;
 
 import android.graphics.Bitmap;
+import android.renderscript.Allocation;
+import android.renderscript.Element;
+import android.renderscript.RenderScript;
+import android.renderscript.ScriptIntrinsicConvolve3x3;
 import android.support.media.ExifInterface;
-import android.util.Log;
 import android.util.SparseIntArray;
 
 import java.io.FileOutputStream;
@@ -80,21 +83,24 @@ public class PostProcessorYUV extends PostProcessor {
                     B = 1.772 * Cr;
 
                     LowBound = Math.max(-R, Math.max(-G, -B));
-                    HighBound = Math.min(255 + R, Math.min(255 + G, 255 + B));
+                    HighBound = Math.min(R, Math.min(G, B));
                 } else
                     Cb = Cr = 0; //Reset for next loop
 
-                Y = Math.min(HighBound, Math.max(LowBound, Y / images.length));
+                Y = clip(Y / images.length, LowBound, HighBound + 252); //3 lower
                 out[x] = 0xFF000000 | ((int)(Y + R) << 16) | ((int)(Y + G) << 8) | (int)(Y + B);
             }
 
             bm.setPixels(out, 0, width - cutOff, 0, y, width - cutOff, 1);
         }
 
+        bm = sharpenAndDispose(bm);
+
         String mediaFile = getSavePath("jpeg");
         try {
             FileOutputStream fos = new FileOutputStream(mediaFile);
             bm.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+            bm.recycle();
             fos.close();
 
             ExifInterface exif = new ExifInterface(mediaFile);
@@ -103,7 +109,35 @@ public class PostProcessorYUV extends PostProcessor {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
         return new String[] { mediaFile };
+    }
+
+    private static int clip(double in, double low, double high) {
+        return (int)Math.min(Math.max(in, low), high);
+    }
+
+    private final static float[] sharpenMatrix = {
+            0, -1.0f, 0,
+            -1.0f, 5.0f, -1.0f,
+            0, -1.0f, 0
+    };
+
+    public Bitmap sharpenAndDispose(Bitmap in) {
+        Bitmap bitmap = Bitmap.createBitmap(in.getWidth(), in.getHeight(), Bitmap.Config.ARGB_8888);
+        RenderScript rs = RenderScript.create(activity);
+
+        Allocation allocIn = Allocation.createFromBitmap(rs, in);
+        Allocation allocOut = Allocation.createFromBitmap(rs, bitmap);
+
+        ScriptIntrinsicConvolve3x3 convolution = ScriptIntrinsicConvolve3x3.create(rs, Element.U8_4(rs));
+        convolution.setInput(allocIn);
+        convolution.setCoefficients(sharpenMatrix);
+        convolution.forEach(allocOut);
+
+        allocOut.copyTo(bitmap);
+        rs.destroy();
+
+        in.recycle();
+        return bitmap;
     }
 }
