@@ -48,6 +48,8 @@ public class CameraZSLQueue extends CameraFramesSaver {
             processor = new PostProcessorRAW(activity, cameraFormatSize, cameraCharacteristics);
         else if (cameraFormatSize.format == ImageFormat.YUV_420_888)
             processor = new PostProcessorYUV(activity, cameraFormatSize);
+        else if (cameraFormatSize.format == ImageFormat.JPEG)
+            processor = new PostProcessorJPEG(activity, cameraFormatSize);
     }
 
     public Surface getReadSurface() {

@@ -42,7 +42,8 @@ public class CameraWrapper {
             cameraCharacteristics[i] = cameraManager.getCameraCharacteristics(cameras[i]);
 
             CameraFormatSize cfs = new CameraFormatSize();
-            cfs.format = i == 0 ? ImageFormat.RAW_SENSOR : ImageFormat.YUV_420_888;
+            //cfs.format = i == 0 ? ImageFormat.RAW_SENSOR : ImageFormat.YUV_420_888;
+            cfs.format = i == 0 ? ImageFormat.RAW_SENSOR : ImageFormat.JPEG;
             cfs.size = cameraCharacteristics[i].get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP).getOutputSizes(cfs.format)[0];
             cameraFormatSizes[i] = cfs;
         }
@@ -59,7 +60,8 @@ public class CameraWrapper {
                 @Override
                 public void onOpened(final CameraDevice camera) {
                     cameraDevice = camera;
-                    int reprocCount = 7 - useCamera * 4; //3 if selfie
+                    //int reprocCount = 5 - useCamera; //Reduce for selfies
+                    int reprocCount = 17;
                     zslQueue = new CameraZSLQueue(mActivity, reprocCount, cameraFormatSizes[useCamera], cameraCharacteristics[useCamera]);
                     try {
                         final CaptureRequest crp;

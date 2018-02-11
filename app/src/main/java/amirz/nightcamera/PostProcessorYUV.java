@@ -1,6 +1,10 @@
 package amirz.nightcamera;
 
 import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.graphics.ImageFormat;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
 import android.renderscript.Allocation;
 import android.renderscript.Element;
 import android.renderscript.RenderScript;
@@ -11,8 +15,13 @@ import android.util.SparseIntArray;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class PostProcessorYUV extends PostProcessor {
+    private static final int CPUs = Runtime.getRuntime().availableProcessors();
+    private static ExecutorService executor = Executors.newFixedThreadPool(CPUs);
+
     private static SparseIntArray ORIENTATIONS = new SparseIntArray();
     static { //Selfie orientation
         ORIENTATIONS.append(0, ExifInterface.ORIENTATION_ROTATE_270);
@@ -32,12 +41,40 @@ public class PostProcessorYUV extends PostProcessor {
         final int width = images[0].image.getWidth();
         final int height = images[0].image.getHeight();
 
+        if (true) {
+            ByteBuffer yBuffer = images[0].buffer(0);
+            ByteBuffer uBuffer = images[0].buffer(1);
+            ByteBuffer vBuffer = images[0].buffer(2);
+            int yRowStride = images[0].image.getPlanes()[0].getRowStride();
+            int uvRowStride = images[0].image.getPlanes()[1].getRowStride();
+            byte[] nv21 = new byte[(yRowStride + 2 * uvRowStride) * height];
+            yBuffer.get(nv21, 0, yBuffer.remaining());
+            vBuffer.get(nv21, yRowStride * height, vBuffer.remaining()); //U and V are swapped
+            uBuffer.get(nv21, (yRowStride + uvRowStride) * height, uBuffer.remaining());
+
+            String mediaFile = getSavePath("jpeg");
+            try {
+                FileOutputStream fos = new FileOutputStream(mediaFile);
+                YuvImage yuvImage = new YuvImage(nv21, ImageFormat.NV21, width, height, new int[] { yRowStride, uvRowStride });
+                yuvImage.compressToJpeg(new Rect(0, 0, width, height), 100, fos);
+                fos.close();
+
+                ExifInterface exif = new ExifInterface(mediaFile);
+                exif.setAttribute(ExifInterface.TAG_ORIENTATION, String.valueOf(ORIENTATIONS.get(rotate)));
+                exif.saveAttributes();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            return new String[] { mediaFile };
+        }
+
         //Something weird near the edges
-        final int cutOff = 8;
+        final int cutOff = 32;
 
         ByteBuffer[][] buffers = new ByteBuffer[images.length][];
         for (int i = 0; i < images.length; i++)
-            buffers[i] = new ByteBuffer[] { images[i].plane(0), images[i].plane(1), images[i].plane(2) };
+            buffers[i] = new ByteBuffer[] { images[i].buffer(0), images[i].buffer(1), images[i].buffer(2) };
 
         int rowStride = images[0].image.getPlanes()[0].getRowStride();
         int buffer2limit = buffers[0][2].remaining();
@@ -82,19 +119,22 @@ public class PostProcessorYUV extends PostProcessor {
                     G = -0.34414 * Cr - 0.71414 * Cb;
                     B = 1.772 * Cr;
 
-                    LowBound = Math.max(-R, Math.max(-G, -B));
-                    HighBound = Math.min(R, Math.min(G, B));
+                    LowBound = -Math.min(R, Math.min(G, B));
+                    HighBound = 0xFF - Math.max(R, Math.max(G, B));
+                    if (LowBound > HighBound)
+                        throw new RuntimeException("Colour conversion");
                 } else
                     Cb = Cr = 0; //Reset for next loop
 
-                Y = clip(Y / images.length, LowBound, HighBound + 252); //3 lower
-                out[x] = 0xFF000000 | ((int)(Y + R) << 16) | ((int)(Y + G) << 8) | (int)(Y + B);
+                Y = clip(Y / images.length, LowBound, HighBound);
+                out[x] = Color.argb(0xFF, (int)(Y + R), (int)(Y + G), (int)(Y + B));
             }
 
             bm.setPixels(out, 0, width - cutOff, 0, y, width - cutOff, 1);
         }
 
-        bm = sharpenAndDispose(bm);
+        //bm = matrixAndDispose(bm, blurMatrix);
+        bm = matrixAndDispose(bm, sharpenMatrix);
 
         String mediaFile = getSavePath("jpeg");
         try {
@@ -122,16 +162,25 @@ public class PostProcessorYUV extends PostProcessor {
             0, -1.0f, 0
     };
 
-    public Bitmap sharpenAndDispose(Bitmap in) {
+    private final static float[] blurMatrix = {
+            1f/25, 1f/25, 1f/25, 1f/25, 1f/25,
+            1f/25, 1f/25, 1f/25, 1f/25, 1f/25,
+            1f/25, 1f/25, 1f/25, 1f/25, 1f/25,
+            1f/25, 1f/25, 1f/25, 1f/25, 1f/25,
+            1f/25, 1f/25, 1f/25, 1f/25, 1f/25
+    };
+
+    public Bitmap matrixAndDispose(Bitmap in, float[] matrix) {
         Bitmap bitmap = Bitmap.createBitmap(in.getWidth(), in.getHeight(), Bitmap.Config.ARGB_8888);
         RenderScript rs = RenderScript.create(activity);
 
         Allocation allocIn = Allocation.createFromBitmap(rs, in);
         Allocation allocOut = Allocation.createFromBitmap(rs, bitmap);
 
+        //ScriptIntrinsicConvolve5x5 convolution = ScriptIntrinsicConvolve5x5.create(rs, Element.U8_4(rs));
         ScriptIntrinsicConvolve3x3 convolution = ScriptIntrinsicConvolve3x3.create(rs, Element.U8_4(rs));
         convolution.setInput(allocIn);
-        convolution.setCoefficients(sharpenMatrix);
+        convolution.setCoefficients(matrix);
         convolution.forEach(allocOut);
 
         allocOut.copyTo(bitmap);

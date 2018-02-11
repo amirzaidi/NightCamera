@@ -34,14 +34,18 @@ public class FullscreenActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_fullscreen);
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)
+        if (hasPermissions())
             init();
         else
             ActivityCompat.requestPermissions(FullscreenActivity.this, new String[] {
                     Manifest.permission.CAMERA,
                     Manifest.permission.WRITE_EXTERNAL_STORAGE
             }, REQUEST_PERMISSIONS);
+    }
+
+    private boolean hasPermissions() {
+        return ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
     }
 
     @Override
@@ -65,9 +69,9 @@ public class FullscreenActivity extends AppCompatActivity {
             finish();
         }
 
-        switcher = (FloatingActionButton) findViewById(R.id.switcher);
-        shutter = (FloatingActionButton) findViewById(R.id.shutter);
-        video = (FloatingActionButton) findViewById(R.id.video);
+        switcher = findViewById(R.id.switcher);
+        shutter = findViewById(R.id.shutter);
+        video = findViewById(R.id.video);
 
         setUIEnabled(false);
 
@@ -96,6 +100,8 @@ public class FullscreenActivity extends AppCompatActivity {
                 video*/
             }
         });
+
+        onRunning();
     }
 
     @Override
@@ -126,10 +132,19 @@ public class FullscreenActivity extends AppCompatActivity {
     }
 
     private TextureView tv;
+    private boolean running = false;
 
     @Override
     protected void onResume() {
         super.onResume();
+        if (hasPermissions()) {
+            if (running)
+                onRunning();
+            running = true;
+        }
+    }
+
+    private void onRunning() {
         motionTracker.start();
 
         tv = new TextureView(this);
@@ -141,10 +156,12 @@ public class FullscreenActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        camera.closeCamera();
-        motionTracker.stop();
+        if (hasPermissions()) {
+            camera.closeCamera();
+            motionTracker.stop();
 
-        ((ViewGroup) tv.getParent()).removeView(tv);
+            ((ViewGroup) tv.getParent()).removeView(tv);
+        }
     }
 
     @Override

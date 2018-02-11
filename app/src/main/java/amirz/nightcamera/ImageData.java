@@ -18,7 +18,11 @@ public class ImageData {
             image.close();
     }
 
-    public ByteBuffer plane(int number) {
-        return image.getPlanes()[number].getBuffer();
+    public Image.Plane plane(int number) {
+        return image.getPlanes()[number];
+    }
+
+    public ByteBuffer buffer(int number) {
+        return plane(number).getBuffer();
     }
 }
