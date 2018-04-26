@@ -1,4 +1,4 @@
-package amirz.nightcamera;
+package amirz.nightcamera.processor;
 
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -17,6 +17,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import amirz.nightcamera.CameraFormatSize;
+import amirz.nightcamera.FullscreenActivity;
+import amirz.nightcamera.ImageData;
 
 public class PostProcessorYUV extends PostProcessor {
     private static final int CPUs = Runtime.getRuntime().availableProcessors();

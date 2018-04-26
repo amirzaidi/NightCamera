@@ -1,15 +1,15 @@
-package amirz.nightcamera;
+package amirz.nightcamera.processor;
 
-import android.graphics.Bitmap;
-import android.hardware.camera2.CameraCharacteristics;
-import android.hardware.camera2.DngCreator;
-import android.media.Image;
 import android.support.media.ExifInterface;
 import android.util.SparseIntArray;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+
+import amirz.nightcamera.CameraFormatSize;
+import amirz.nightcamera.FullscreenActivity;
+import amirz.nightcamera.ImageData;
 
 public class PostProcessorJPEG extends PostProcessor {
     private static SparseIntArray ORIENTATIONS = new SparseIntArray();

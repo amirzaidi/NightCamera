@@ -9,6 +9,11 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.view.Surface;
 
+import amirz.nightcamera.processor.PostProcessor;
+import amirz.nightcamera.processor.PostProcessorJPEG;
+import amirz.nightcamera.processor.PostProcessorRAW;
+import amirz.nightcamera.processor.PostProcessorYUV;
+
 public class CameraZSLQueue extends CameraFramesSaver {
     private final static String TAG = "ZSLQueue";
 

@@ -61,7 +61,7 @@ public class CameraWrapper {
                 public void onOpened(final CameraDevice camera) {
                     cameraDevice = camera;
                     //int reprocCount = 5 - useCamera; //Reduce for selfies
-                    int reprocCount = 17;
+                    int reprocCount = 3;
                     zslQueue = new CameraZSLQueue(mActivity, reprocCount, cameraFormatSizes[useCamera], cameraCharacteristics[useCamera]);
                     try {
                         final CaptureRequest crp;

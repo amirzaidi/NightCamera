@@ -1,4 +1,4 @@
-package amirz.nightcamera;
+package amirz.nightcamera.processor;
 
 import android.hardware.camera2.CameraAccessException;
 import android.media.MediaScannerConnection;
@@ -11,6 +11,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import amirz.nightcamera.CameraFormatSize;
+import amirz.nightcamera.FullscreenActivity;
+import amirz.nightcamera.ImageData;
 
 public abstract class PostProcessor {
     private final static String TAG = PostProcessor.class.getName();
