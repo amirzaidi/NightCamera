@@ -1,6 +1,5 @@
 package amirz.nightcamera;
 
-import android.graphics.Paint;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CaptureRequest;
@@ -12,14 +11,13 @@ public class CameraRequestPreset {
         builder.addTarget(previewSurface); //preview screen
         builder.addTarget(zslSurface); //ZSL saver
 
-        standard(builder);
+        //standard(builder);
 
         builder.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_ON);
         //builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, -1); //80% brightness, reduce highlights
-        builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 6);
+        //builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 6);
 
-        builder.set(CaptureRequest.STATISTICS_LENS_SHADING_MAP_MODE, CaptureRequest.STATISTICS_LENS_SHADING_MAP_MODE_ON); //Raw data
-        builder.set(CaptureRequest.NOISE_REDUCTION_MODE, CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY); //Massive impact on chromatic noise
+        //builder.set(CaptureRequest.STATISTICS_LENS_SHADING_MAP_MODE, CaptureRequest.STATISTICS_LENS_SHADING_MAP_MODE_ON); //Raw data
 
         return builder.build();
     }

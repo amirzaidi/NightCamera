@@ -145,7 +145,7 @@ public class FullscreenActivity extends AppCompatActivity {
     }
 
     private void onRunning() {
-        motionTracker.start();
+        //motionTracker.start();
 
         tv = new TextureView(this);
         addContentView(tv, new ViewGroup.LayoutParams(1080, 1440));
@@ -158,7 +158,7 @@ public class FullscreenActivity extends AppCompatActivity {
         super.onPause();
         if (hasPermissions()) {
             camera.closeCamera();
-            motionTracker.stop();
+            //motionTracker.stop();
 
             ((ViewGroup) tv.getParent()).removeView(tv);
         }

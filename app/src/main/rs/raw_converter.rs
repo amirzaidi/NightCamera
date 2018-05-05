@@ -48,7 +48,6 @@ uint rawWidth; // Width of raw buffer
 uint rawHeight; // Height of raw buffer
 float3 neutralPoint; // The camera neutral
 float4 toneMapCoeffs; // Coefficients for a polynomial tonemapping curve
-
 // Interpolate gain map to find per-channel gains at a given pixel
 static float4 getGain(uint x, uint y) {
     float interpX = (((float) x) / rawWidth) * gainMapWidth;
@@ -68,12 +67,10 @@ static float4 getGain(uint x, uint y) {
     return tl * invFracX * invFracY + tr * fracX * invFracY +
             bl * invFracX * fracY + br * fracX * fracY;
 }
-
 // Apply gamma correction using sRGB gamma curve
 static float gammaEncode(float x) {
     return (x <= 0.0031308f) ? x * 12.92f : 1.055f * pow(x, 0.4166667f) - 0.055f;
 }
-
 // Apply gamma correction to each color channel in RGB pixel
 static float3 gammaCorrectPixel(float3 rgb) {
     float3 ret;
@@ -82,7 +79,6 @@ static float3 gammaCorrectPixel(float3 rgb) {
     ret.z = gammaEncode(rgb.z);
     return ret;
 }
-
 // Apply polynomial tonemapping curve to each color channel in RGB pixel.
 // This attempts to apply tonemapping without changing the hue of each pixel,
 // i.e.:
@@ -178,7 +174,6 @@ static float3 tonemap(float3 rgb) {
     }
     return clamp(finalRGB, 0.f, 1.f);
 }
-
 // Apply a colorspace transform to the intermediate colorspace, apply
 // a tonemapping curve, apply a colorspace transform to a final colorspace,
 // and apply a gamma correction curve.
@@ -190,7 +185,6 @@ static float3 applyColorspace(float3 pRGB) {
     intermediate = tonemap(intermediate);
     return gammaCorrectPixel(clamp(rsMatrixMultiply(&intermediateToSRGB, intermediate), 0.f, 1.f));
 }
-
 // Load a 3x3 patch of pixels into the output.
 static void load3x3(uint x, uint y, rs_allocation buf, /*out*/float* outputArray) {
     outputArray[0] = *((ushort *) rsGetElementAt(buf, x - 1, y - 1));
@@ -203,7 +197,6 @@ static void load3x3(uint x, uint y, rs_allocation buf, /*out*/float* outputArray
     outputArray[7] = *((ushort *) rsGetElementAt(buf, x, y + 1));
     outputArray[8] = *((ushort *) rsGetElementAt(buf, x + 1, y + 1));
 }
-
 // Blacklevel subtract, and normalize each pixel in the outputArray, and apply the
 // gain map.
 static void linearizeAndGainmap(uint x, uint y, ushort4 blackLevel, int whiteLevel,
@@ -294,7 +287,6 @@ static void linearizeAndGainmap(uint x, uint y, ushort4 blackLevel, int whiteLev
         }
     }
 }
-
 // Apply bilinear-interpolation to demosaic
 static float3 demosaic(uint x, uint y, uint cfa, float* inputArray) {
     uint index = (x & 1) | ((y & 1) << 1);
@@ -348,7 +340,6 @@ static float3 demosaic(uint x, uint y, uint cfa, float* inputArray) {
     }
     return pRGB;
 }
-
 // Full RAW->ARGB bitmap conversion kernel
 uchar4 RS_KERNEL convert_RAW_To_ARGB(uint x, uint y) {
     float3 pRGB;
