@@ -32,6 +32,7 @@ public class BitmapUtils {
     public static int G = 1;
     public static int B = 2;
     public static int NUM_CHANNELS = 4;
+
     /**
      * Return the histograms for each color channel (interleaved).
      *
@@ -51,6 +52,7 @@ public class BitmapUtils {
         sums.copyTo(output);
         return output;
     }
+
     /**
      * Find the difference between two bitmaps using average of per-pixel differences.
      *

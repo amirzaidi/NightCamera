@@ -17,6 +17,7 @@ import java.util.Arrays;
 import amirz.nightcamera.CameraFormatSize;
 import amirz.nightcamera.FullscreenActivity;
 import amirz.nightcamera.ImageData;
+import amirz.nightcamera.processor.renderscript.BitmapTransformations;
 import amirz.nightcamera.processor.renderscript.RawConverter;
 
 public class PostProcessorRAW extends PostProcessor {
@@ -50,6 +51,7 @@ public class PostProcessorRAW extends PostProcessor {
                 characteristics, images[0].result, /*offsetX*/0, /*offsetY*/0,
                 /*out*/rawBitmap);
 
+        rawBitmap = BitmapTransformations.sharpen(rs, rawBitmap);
         rs.destroy();
 
         String mediaFile = getSavePath("jpeg");

@@ -43,6 +43,7 @@ import amirz.nightcamera.ScriptC_raw_converter;
 public class RawConverter {
     private static final String TAG = "RawConverter";
     private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
+
     /**
      * Matrix to convert from CIE XYZ colorspace to sRGB, Bradford-adapted to D65.
      */
@@ -51,6 +52,7 @@ public class RawConverter {
             -0.9787684f, 1.9161415f, 0.0334540f,
             0.0719453f, -0.2289914f, 1.4052427f
     };
+
     /**
      * Matrix to convert from the ProPhoto RGB colorspace to CIE XYZ colorspace.
      */
@@ -59,6 +61,7 @@ public class RawConverter {
             0.288000f, 0.711900f, 0.000100f,
             0.000000f, 0.000000f, 0.825105f
     };
+
     /**
      * Matrix to convert from CIE XYZ colorspace to ProPhoto RGB colorspace.
      */
@@ -67,6 +70,7 @@ public class RawConverter {
             -0.544426f, 1.508096f, 0.020472f,
             0.000000f, 0.000000f, 1.211968f
     };
+
     /**
      * Coefficients for a 3rd order polynomial, ordered from highest to lowest power.  This
      * polynomial approximates the default tonemapping curve used for ACR3.
@@ -74,10 +78,36 @@ public class RawConverter {
     private static final float[] DEFAULT_ACR3_TONEMAP_CURVE_COEFFS = new float[] {
             -0.7836f, 0.8469f, 0.943f, 0.0209f
     };
+
+    /**
+     * Coefficients for a 3rd order polynomial, ordered from highest to lowest power.
+     * Adapted to transform from [0,1] to [0,1]
+     */
+    private static final float[] CUSTOM_ACR3_TONEMAP_CURVE_COEFFS = new float[] {
+            -0.7836f, 0.8469f, 0.9367f, 0f
+    };
+
+    /**
+     * A lower value will crush highlights and shadows more.
+     * This value should never be lower than zero to prevent clipping
+     */
+    private static final float TONEMAP_CURVE_STRENGTH = 0.5f;
+
+    /**
+     * Coefficients for a 3rd order polynomial, ordered from highest to lowest power.
+     */
+    private static final float[] CUSTOM_TONEMAP_CURVE_COEFFS = new float[] {
+            -2f + 2f * TONEMAP_CURVE_STRENGTH,
+            3f - 3f * TONEMAP_CURVE_STRENGTH,
+            TONEMAP_CURVE_STRENGTH,
+            0f
+    };
+
     /**
      * The D50 whitepoint coordinates in CIE XYZ colorspace.
      */
     private static final float[] D50_XYZ = new float[] { 0.9642f, 1, 0.8249f };
+
     /**
      * An array containing the color temperatures for standard reference illuminants.
      */
@@ -92,12 +122,9 @@ public class RawConverter {
         sStandardIlluminants.append(CameraMetadata.SENSOR_REFERENCE_ILLUMINANT1_STANDARD_A, 2856);
         sStandardIlluminants.append(CameraMetadata.SENSOR_REFERENCE_ILLUMINANT1_STANDARD_B, 4874);
         sStandardIlluminants.append(CameraMetadata.SENSOR_REFERENCE_ILLUMINANT1_STANDARD_C, 6774);
-        sStandardIlluminants.append(
-                CameraMetadata.SENSOR_REFERENCE_ILLUMINANT1_DAYLIGHT_FLUORESCENT, 6430);
-        sStandardIlluminants.append(
-                CameraMetadata.SENSOR_REFERENCE_ILLUMINANT1_COOL_WHITE_FLUORESCENT, 4230);
-        sStandardIlluminants.append(
-                CameraMetadata.SENSOR_REFERENCE_ILLUMINANT1_WHITE_FLUORESCENT, 3450);
+        sStandardIlluminants.append(CameraMetadata.SENSOR_REFERENCE_ILLUMINANT1_DAYLIGHT_FLUORESCENT, 6430);
+        sStandardIlluminants.append(CameraMetadata.SENSOR_REFERENCE_ILLUMINANT1_COOL_WHITE_FLUORESCENT, 4230);
+        sStandardIlluminants.append(CameraMetadata.SENSOR_REFERENCE_ILLUMINANT1_WHITE_FLUORESCENT, 3450);
         // TODO: Add the rest of the illuminants included in the LightSource EXIF tag.
     }
     /**
@@ -342,9 +369,9 @@ public class RawConverter {
         converterKernel.set_rawWidth(inputWidth);
         converterKernel.set_neutralPoint(new Float3(neutralColorPoint[0].floatValue(),
                 neutralColorPoint[1].floatValue(), neutralColorPoint[2].floatValue()));
-        converterKernel.set_toneMapCoeffs(new Float4(DEFAULT_ACR3_TONEMAP_CURVE_COEFFS[0],
-                DEFAULT_ACR3_TONEMAP_CURVE_COEFFS[1], DEFAULT_ACR3_TONEMAP_CURVE_COEFFS[2],
-                DEFAULT_ACR3_TONEMAP_CURVE_COEFFS[3]));
+        converterKernel.set_toneMapCoeffs(new Float4(CUSTOM_TONEMAP_CURVE_COEFFS[0],
+                CUSTOM_TONEMAP_CURVE_COEFFS[1], CUSTOM_TONEMAP_CURVE_COEFFS[2],
+                CUSTOM_TONEMAP_CURVE_COEFFS[3]));
         converterKernel.set_hasGainMap(gainMap != null);
         if (gainMap != null) {
             converterKernel.set_gainMap(gainMap);
@@ -357,6 +384,7 @@ public class RawConverter {
         converterKernel.forEach_convert_RAW_To_ARGB(output);
         output.copyTo(argbOutput);  // Force RS sync with bitmap (does not do an extra copy).
     }
+
     /**
      * Create a float-backed renderscript {@link Allocation} with the given dimensions, containing
      * the contents of the given float array.
@@ -380,6 +408,7 @@ public class RawConverter {
         fAlloc.copyFrom(fArray);
         return fAlloc;
     }
+
     /**
      * Calculate the correlated color temperature (CCT) for a given x,y chromaticity in CIE 1931 x,y
      * chromaticity space using McCamy's cubic approximation algorithm given in:
@@ -397,6 +426,7 @@ public class RawConverter {
         double n = (x - 0.332) / (y - 0.1858);
         return -449 * Math.pow(n, 3) + 3525 * Math.pow(n, 2) - 6823.3 * n + 5520.33;
     }
+
     /**
      * Calculate the x,y chromaticity coordinates in CIE 1931 x,y chromaticity space from the given
      * CIE XYZ coordinates.
@@ -413,6 +443,7 @@ public class RawConverter {
         ret[1] = Y / (X + Y + Z);
         return ret;
     }
+
     /**
      * Linearly interpolate between a and b given fraction f.
      *
@@ -425,6 +456,7 @@ public class RawConverter {
     private static double lerp(double a, double b, double f) {
         return (a * (1.0f - f)) + (b * f);
     }
+
     /**
      * Linearly interpolate between 3x3 matrices a and b given fraction f.
      *
@@ -438,6 +470,7 @@ public class RawConverter {
             result[i] = (float) lerp(a[i], b[i], f);
         }
     }
+
     /**
      * Convert a 9x9 {@link ColorSpaceTransform} to a matrix and write the matrix into the
      * output.
@@ -452,6 +485,7 @@ public class RawConverter {
             }
         }
     }
+
     /**
      * Find the interpolation factor to use with the RAW matrices given a neutral color point.
      *
@@ -546,6 +580,7 @@ public class RawConverter {
         }
         return interpFactor;
     }
+
     /**
      * Calculate the transform from the raw camera sensor colorspace to CIE XYZ colorspace with a
      * D50 whitepoint.
@@ -596,6 +631,7 @@ public class RawConverter {
         multiply(D, inverseInterpolatedCC, /*out*/intermediate2);
         multiply(intermediate, intermediate2, /*out*/outputTransform);
     }
+
     /**
      * Map a 3d column vector using the given matrix.
      *
@@ -608,6 +644,7 @@ public class RawConverter {
         output[1] = input[0] * matrix[3] + input[1] * matrix[4] + input[2] * matrix[5];
         output[2] = input[0] * matrix[6] + input[1] * matrix[7] + input[2] * matrix[8];
     }
+
     /**
      * Multiply two 3x3 matrices together: A * B
      *
@@ -625,6 +662,7 @@ public class RawConverter {
         output[5] = a[3] * b[2] + a[4] * b[5] + a[5] * b[8];
         output[8] = a[6] * b[2] + a[7] * b[5] + a[8] * b[8];
     }
+
     /**
      * Transpose a 3x3 matrix in-place.
      *
@@ -643,6 +681,7 @@ public class RawConverter {
         m[7] = t;
         return m;
     }
+
     /**
      * Invert a 3x3 matrix, or return false if the matrix is singular.
      *
@@ -683,6 +722,7 @@ public class RawConverter {
         output[8] = (float) (t22 / det);
         return true;
     }
+
     /**
      * Scale each element in a matrix by the given scaling factor.
      *
@@ -694,6 +734,7 @@ public class RawConverter {
             matrix[i] *= factor;
         }
     }
+
     /**
      * Clamp a value to a given range.
      *
@@ -705,6 +746,7 @@ public class RawConverter {
     private static double clamp(double low, double high, double value) {
         return Math.max(low, Math.min(high, value));
     }
+
     /**
      * Return the max float in the array.
      *
@@ -718,6 +760,7 @@ public class RawConverter {
         }
         return val;
     }
+
     /**
      * Normalize ColorMatrix to eliminate headroom for input space scaled to [0, 1] using
      * the D50 whitepoint.  This maps the D50 whitepoint into the colorspace used by the
@@ -735,6 +778,7 @@ public class RawConverter {
             scale(1.0f / maxVal, colorMatrix);
         }
     }
+
     /**
      * Normalize ForwardMatrix to ensure that sensor whitepoint [1, 1, 1] maps to D50 in CIE XYZ
      * colorspace.
