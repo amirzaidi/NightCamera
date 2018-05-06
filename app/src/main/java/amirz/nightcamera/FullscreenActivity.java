@@ -1,46 +1,67 @@
 package amirz.nightcamera;
 
 import android.Manifest;
-import android.content.Context;
 import android.content.pm.PackageManager;
 import android.hardware.camera2.CameraAccessException;
+import android.media.MediaScannerConnection;
+import android.os.Bundle;
+import android.renderscript.RenderScript;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
+import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Toast;
 
-public class FullscreenActivity extends AppCompatActivity {
+import amirz.nightcamera.device.DevicePreset;
+import amirz.nightcamera.motion.MotionTracker;
+import amirz.nightcamera.server.CameraServer;
+import amirz.nightcamera.server.CameraStream;
+import amirz.nightcamera.server.CameraStreamCallbacks;
+import amirz.nightcamera.ui.MainThreadDelegate;
+import amirz.nightcamera.ui.PathFinder;
+
+public class FullscreenActivity extends AppCompatActivity implements CameraStreamCallbacks {
 
     private static final int REQUEST_PERMISSIONS = 200;
 
-    public MotionTracker motionTracker;
-    public CameraWrapper camera;
+    private MainThreadDelegate mCallbackDelegate;
+    public MotionTracker mMotionTracker;
+    //public CameraWrapper camera;
+    private CameraServer mServer;
+    private CameraStream mStream;
     public int useCamera = 0;
 
-    private PathFinder pathFinder;
+    private RenderScript mRs;
 
-    public FloatingActionButton switcher;
-    public FloatingActionButton shutter;
-    public FloatingActionButton video;
+    private PathFinder mPathFinder;
+
+    public FloatingActionButton mSwitcher;
+    public FloatingActionButton mShutter;
+    public FloatingActionButton mVideo;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_fullscreen);
 
-        if (hasPermissions())
-            init();
-        else
-            ActivityCompat.requestPermissions(FullscreenActivity.this, new String[] {
+        if (DevicePreset.getInstance() == null) {
+            Toast.makeText(this, "Device not supported", Toast.LENGTH_SHORT).show();
+            finish();
+        }
+
+        if (hasPermissions()) {
+            onCreateImpl();
+        } else {
+            ActivityCompat.requestPermissions(FullscreenActivity.this, new String[]{
                     Manifest.permission.CAMERA,
                     Manifest.permission.WRITE_EXTERNAL_STORAGE
             }, REQUEST_PERMISSIONS);
+        }
     }
 
     private boolean hasPermissions() {
@@ -50,58 +71,76 @@ public class FullscreenActivity extends AppCompatActivity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if (requestCode == REQUEST_PERMISSIONS)
-            if (grantResults[0] == PackageManager.PERMISSION_GRANTED)
-                init();
-            else
+        if (requestCode == REQUEST_PERMISSIONS) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                onCreateImpl();
+            } else {
                 finish();
+            }
+        }
     }
 
-    private void init() {
-        final FullscreenActivity instance = this;
+    private void onCreateImpl() {
+        mMotionTracker = new MotionTracker(this);
 
-        motionTracker = new MotionTracker(this);
-
+        mCallbackDelegate = new MainThreadDelegate(this);
         try {
-            camera = new CameraWrapper(this);
+            mServer = new CameraServer(this);
         } catch (CameraAccessException e) {
             e.printStackTrace();
             finish();
         }
 
-        switcher = findViewById(R.id.switcher);
-        shutter = findViewById(R.id.shutter);
-        video = findViewById(R.id.video);
+        mSwitcher = findViewById(R.id.switcher);
+        mShutter = findViewById(R.id.shutter);
+        mVideo = findViewById(R.id.video);
 
         setUIEnabled(false);
 
-        switcher.setOnClickListener(new View.OnClickListener() {
+        mSwitcher.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                setUIEnabled(false);
+                if (mStream != null) {
+                    mServer.requestClose(mStream);
+                }
 
                 useCamera ^= 1;
-                camera.openCamera(useCamera, pathFinder.previewSurface);
+                mStream = mServer.requestOpen(mServer.getStreamFormats().get(useCamera), mCallbackDelegate);
             }
         });
 
-        shutter.setOnClickListener(new View.OnClickListener() {
+        mShutter.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 setUIEnabled(false);
-                camera.zslQueue.takeAndProcessAsync(instance);
+                mStream.takeAndProcessAsync();
             }
         });
 
-        video.setOnClickListener(new View.OnClickListener() {
+        mVideo.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 /*start
-                video*/
+                mVideo*/
             }
         });
 
-        onRunning();
+        mRs = RenderScript.create(this);
+    }
+
+    public void onSurfaceReady() {
+        mStream = mServer.requestOpen(mServer.getStreamFormats().get(useCamera), mCallbackDelegate);
+    }
+
+    @Override
+    public void onCameraStartAvailable() {
+        try {
+            //Abort when rapidly switching cameras
+            mStream.startAsync();
+        } catch (CameraAccessException e) {
+            //Permission handling went wrong
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -122,43 +161,41 @@ public class FullscreenActivity extends AppCompatActivity {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                shutter.setEnabled(enabled);
+                mShutter.setEnabled(enabled);
                 float toScale = enabled ? 1 : 0.25f;
-                shutter.animate().scaleX(toScale).scaleY(toScale).setDuration(200).setInterpolator(new AccelerateDecelerateInterpolator()).start();
-                video.setEnabled(enabled);
-                switcher.setEnabled(enabled);
+                mShutter.animate().scaleX(toScale).scaleY(toScale).setDuration(200).setInterpolator(new AccelerateDecelerateInterpolator()).start();
+                mVideo.setEnabled(enabled);
+                mSwitcher.setEnabled(enabled);
             }
         });
     }
 
     private TextureView tv;
-    private boolean running = false;
+    private boolean mPaused = true;
 
     @Override
     protected void onResume() {
         super.onResume();
         if (hasPermissions()) {
-            if (running)
-                onRunning();
-            running = true;
+            if (mPaused) {
+                mMotionTracker.start();
+
+                tv = new TextureView(this);
+                addContentView(tv, new ViewGroup.LayoutParams(1080, 1440));
+
+                mPathFinder = new PathFinder(tv, this);
+            }
+            mPaused = false;
         }
-    }
-
-    private void onRunning() {
-        //motionTracker.start();
-
-        tv = new TextureView(this);
-        addContentView(tv, new ViewGroup.LayoutParams(1080, 1440));
-
-        pathFinder = new PathFinder(tv, this);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         if (hasPermissions()) {
-            camera.closeCamera();
-            //motionTracker.stop();
+            mPaused = true;
+            mServer.requestClose(mStream);
+            mMotionTracker.stop();
 
             ((ViewGroup) tv.getParent()).removeView(tv);
         }
@@ -168,20 +205,51 @@ public class FullscreenActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
 
-        if (camera != null) {
-            camera.closeCamera();
-            camera.close();
-            camera = null;
+        if (mServer != null) {
+            mServer.requestShutdown();
         }
+
+        RenderScript.releaseAllContexts();
     }
 
-    public void toast(final String message) {
-        final Context c = this;
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                Toast.makeText(c, message, Toast.LENGTH_SHORT).show();
-            }
-        });
+    @Override
+    public Surface getPreviewSurface() {
+        return mPathFinder.previewSurface;
+    }
+
+    @Override
+    public RenderScript getRsInstance() {
+        return mRs;
+    }
+
+    @Override
+    public MotionTracker getMotionTracker() {
+        return mMotionTracker;
+    }
+
+    @Override
+    public void onCameraStarted() {
+        setUIEnabled(true);
+    }
+
+    @Override
+    public void onCameraStopped() {
+        setUIEnabled(false);
+    }
+
+    @Override
+    public void onProcessingCount(int count) {
+        //setUIEnabled(count <= 3);
+        setUIEnabled(count <= 0);
+    }
+
+    @Override
+    public void onFocused() {
+
+    }
+
+    @Override
+    public void onTaken(String[] paths) {
+        MediaScannerConnection.scanFile(this, paths, null, null);
     }
 }

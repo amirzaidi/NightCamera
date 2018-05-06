@@ -42,7 +42,7 @@ import amirz.nightcamera.ScriptC_raw_converter;
  */
 public class RawConverter {
     private static final String TAG = "RawConverter";
-    private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
+    private static final boolean DEBUG = true;
 
     /**
      * Matrix to convert from CIE XYZ colorspace to sRGB, Bradford-adapted to D65.
@@ -75,33 +75,33 @@ public class RawConverter {
      * Coefficients for a 3rd order polynomial, ordered from highest to lowest power.  This
      * polynomial approximates the default tonemapping curve used for ACR3.
      */
-    private static final float[] DEFAULT_ACR3_TONEMAP_CURVE_COEFFS = new float[] {
+    /*private static final float[] DEFAULT_ACR3_TONEMAP_CURVE_COEFFS = new float[] {
             -0.7836f, 0.8469f, 0.943f, 0.0209f
-    };
+    };*/
 
     /**
      * Coefficients for a 3rd order polynomial, ordered from highest to lowest power.
      * Adapted to transform from [0,1] to [0,1]
      */
-    private static final float[] CUSTOM_ACR3_TONEMAP_CURVE_COEFFS = new float[] {
+    /*private static final float[] CUSTOM_ACR3_TONEMAP_CURVE_COEFFS = new float[] {
             -0.7836f, 0.8469f, 0.9367f, 0f
-    };
+    };*/
 
     /**
      * A lower value will crush highlights and shadows more.
      * This value should never be lower than zero to prevent clipping
      */
-    private static final float TONEMAP_CURVE_STRENGTH = 0.5f;
+    //private static final float TONEMAP_CURVE_STRENGTH = 0.5f;
 
     /**
      * Coefficients for a 3rd order polynomial, ordered from highest to lowest power.
      */
-    private static final float[] CUSTOM_TONEMAP_CURVE_COEFFS = new float[] {
+    /*private static final float[] CUSTOM_TONEMAP_CURVE_COEFFS = new float[] {
             -2f + 2f * TONEMAP_CURVE_STRENGTH,
             3f - 3f * TONEMAP_CURVE_STRENGTH,
             TONEMAP_CURVE_STRENGTH,
             0f
-    };
+    };*/
 
     /**
      * The D50 whitepoint coordinates in CIE XYZ colorspace.
@@ -198,6 +198,7 @@ public class RawConverter {
     public static void convertToSRGB(RenderScript rs, int inputWidth, int inputHeight,
                                      int inputStride, byte[] rawImageInput, CameraCharacteristics staticMetadata,
                                      CaptureResult dynamicMetadata, int outputOffsetX, int outputOffsetY,
+                                     float saturationFactor, float tonemapStrength,
             /*out*/Bitmap argbOutput) {
         int cfa = staticMetadata.get(CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT);
         int[] blackLevelPattern = new int[4];
@@ -250,9 +251,19 @@ public class RawConverter {
         }
         Rational[] neutral = dynamicMetadata.get(CaptureResult.SENSOR_NEUTRAL_COLOR_POINT);
         LensShadingMap shadingMap = dynamicMetadata.get(CaptureResult.STATISTICS_LENS_SHADING_CORRECTION_MAP);
+
+        float[] customTonemap = new float[] {
+                -2f + 2f * tonemapStrength,
+                3f - 3f * tonemapStrength,
+                tonemapStrength,
+                0f
+        };
+
         convertToSRGB(rs, inputWidth, inputHeight, inputStride, cfa, blackLevelPattern, whiteLevel,
                 rawImageInput, ref1, ref2, calib1, calib2, color1, color2,
-                forward1, forward2, neutral, shadingMap, outputOffsetX, outputOffsetY, argbOutput);
+                forward1, forward2, neutral, shadingMap, outputOffsetX, outputOffsetY,
+                saturationFactor, customTonemap,
+                argbOutput);
     }
     /**
      * Convert a RAW16 buffer into an sRGB buffer, and write the result into a bitmap.
@@ -265,6 +276,7 @@ public class RawConverter {
                                       float[] calibrationTransform2, float[] colorMatrix1, float[] colorMatrix2,
                                       float[] forwardTransform1, float[] forwardTransform2, Rational[/*3*/] neutralColorPoint,
                                       LensShadingMap lensShadingMap, int outputOffsetX, int outputOffsetY,
+                                      float saturationFactor, float[] tonemap,
             /*out*/Bitmap argbOutput) {
         // Validate arguments
         if (argbOutput == null || rs == null || rawImageInput == null) {
@@ -369,9 +381,9 @@ public class RawConverter {
         converterKernel.set_rawWidth(inputWidth);
         converterKernel.set_neutralPoint(new Float3(neutralColorPoint[0].floatValue(),
                 neutralColorPoint[1].floatValue(), neutralColorPoint[2].floatValue()));
-        converterKernel.set_toneMapCoeffs(new Float4(CUSTOM_TONEMAP_CURVE_COEFFS[0],
-                CUSTOM_TONEMAP_CURVE_COEFFS[1], CUSTOM_TONEMAP_CURVE_COEFFS[2],
-                CUSTOM_TONEMAP_CURVE_COEFFS[3]));
+        converterKernel.set_toneMapCoeffs(new Float4(tonemap[0],
+                tonemap[1], tonemap[2],
+                tonemap[3]));
         converterKernel.set_hasGainMap(gainMap != null);
         if (gainMap != null) {
             converterKernel.set_gainMap(gainMap);
@@ -381,6 +393,7 @@ public class RawConverter {
         converterKernel.set_cfaPattern(cfa);
         converterKernel.set_blackLevelPattern(new Int4(blackLevelPattern[0],
                 blackLevelPattern[1], blackLevelPattern[2], blackLevelPattern[3]));
+        converterKernel.set_saturationFactor(saturationFactor);
         converterKernel.forEach_convert_RAW_To_ARGB(output);
         output.copyTo(argbOutput);  // Force RS sync with bitmap (does not do an extra copy).
     }

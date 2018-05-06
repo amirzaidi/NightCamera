@@ -1,10 +1,12 @@
-package amirz.nightcamera;
+package amirz.nightcamera.data;
 
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.TotalCaptureResult;
 import android.media.Image;
 
 import java.nio.ByteBuffer;
+
+import amirz.nightcamera.motion.MotionSnapshot;
 
 public class ImageData {
     public CaptureRequest request;
@@ -14,8 +16,9 @@ public class ImageData {
     public Image image;
 
     public void close() {
-        if (image != null)
+        if (image != null) {
             image.close();
+        }
     }
 
     public Image.Plane plane(int number) {

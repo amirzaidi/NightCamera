@@ -5,10 +5,6 @@ import android.graphics.Color;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
-import android.renderscript.Allocation;
-import android.renderscript.Element;
-import android.renderscript.RenderScript;
-import android.renderscript.ScriptIntrinsicConvolve3x3;
 import android.support.media.ExifInterface;
 import android.util.SparseIntArray;
 
@@ -18,28 +14,19 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import amirz.nightcamera.CameraFormatSize;
-import amirz.nightcamera.FullscreenActivity;
-import amirz.nightcamera.ImageData;
+import amirz.nightcamera.data.ImageData;
+import amirz.nightcamera.server.CameraServer;
 
 public class PostProcessorYUV extends PostProcessor {
     private static final int CPUs = Runtime.getRuntime().availableProcessors();
     private static ExecutorService executor = Executors.newFixedThreadPool(CPUs);
 
-    private static SparseIntArray ORIENTATIONS = new SparseIntArray();
-    static { //Selfie orientation
-        ORIENTATIONS.append(0, ExifInterface.ORIENTATION_ROTATE_270);
-        ORIENTATIONS.append(90, ExifInterface.ORIENTATION_NORMAL);
-        ORIENTATIONS.append(180, ExifInterface.ORIENTATION_ROTATE_90);
-        ORIENTATIONS.append(270, ExifInterface.ORIENTATION_ROTATE_180);
-    }
-
-    public PostProcessorYUV(FullscreenActivity activity, CameraFormatSize cameraFormatSize) {
-        super(activity, cameraFormatSize);
+    public PostProcessorYUV(CameraServer.CameraStreamFormat cameraFormatSize) {
+        super(cameraFormatSize);
     }
 
     @Override
-    protected String[] internalProcessAndSave(ImageData[] images) {
+    public String[] processToFiles(ImageData[] images) {
         final int rotate = images[images.length - 1].motion.mRot;
 
         final int width = images[0].image.getWidth();
@@ -64,7 +51,7 @@ public class PostProcessorYUV extends PostProcessor {
                 fos.close();
 
                 ExifInterface exif = new ExifInterface(mediaFile);
-                exif.setAttribute(ExifInterface.TAG_ORIENTATION, String.valueOf(ORIENTATIONS.get(rotate)));
+                exif.setAttribute(ExifInterface.TAG_ORIENTATION, String.valueOf(mDevice.getExifRotation(mStreamFormat.id, rotate)));
                 exif.saveAttributes();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -138,7 +125,7 @@ public class PostProcessorYUV extends PostProcessor {
         }
 
         //bm = matrixAndDispose(bm, blurMatrix);
-        bm = matrixAndDispose(bm, sharpenMatrix);
+        //bm = matrixAndDispose(bm, sharpenMatrix);
 
         String mediaFile = getSavePath("jpeg");
         try {
@@ -148,7 +135,7 @@ public class PostProcessorYUV extends PostProcessor {
             fos.close();
 
             ExifInterface exif = new ExifInterface(mediaFile);
-            exif.setAttribute(ExifInterface.TAG_ORIENTATION, String.valueOf(ORIENTATIONS.get(rotate)));
+            //exif.setAttribute(ExifInterface.TAG_ORIENTATION, String.valueOf(ORIENTATIONS.get(rotate)));
             exif.saveAttributes();
         } catch (IOException e) {
             e.printStackTrace();
@@ -174,7 +161,7 @@ public class PostProcessorYUV extends PostProcessor {
             1f/25, 1f/25, 1f/25, 1f/25, 1f/25
     };
 
-    public Bitmap matrixAndDispose(Bitmap in, float[] matrix) {
+    /*public Bitmap matrixAndDispose(Bitmap in, float[] matrix) {
         Bitmap bitmap = Bitmap.createBitmap(in.getWidth(), in.getHeight(), Bitmap.Config.ARGB_8888);
         RenderScript rs = RenderScript.create(activity);
 
@@ -192,5 +179,5 @@ public class PostProcessorYUV extends PostProcessor {
 
         in.recycle();
         return bitmap;
-    }
+    }*/
 }

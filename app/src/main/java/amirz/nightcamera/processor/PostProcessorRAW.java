@@ -1,7 +1,6 @@
 package amirz.nightcamera.processor;
 
 import android.graphics.Bitmap;
-import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.DngCreator;
 import android.media.Image;
 import android.renderscript.RenderScript;
@@ -14,45 +13,48 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import amirz.nightcamera.CameraFormatSize;
-import amirz.nightcamera.FullscreenActivity;
-import amirz.nightcamera.ImageData;
+import amirz.nightcamera.data.ImageData;
+import amirz.nightcamera.device.DevicePreset;
 import amirz.nightcamera.processor.renderscript.BitmapTransformations;
 import amirz.nightcamera.processor.renderscript.RawConverter;
+import amirz.nightcamera.server.CameraServer;
 
 public class PostProcessorRAW extends PostProcessor {
-    private static SparseIntArray ORIENTATIONS = new SparseIntArray();
-    static { //Regular camera
-        ORIENTATIONS.append(0, ExifInterface.ORIENTATION_ROTATE_90);
-        ORIENTATIONS.append(90, ExifInterface.ORIENTATION_NORMAL);
-        ORIENTATIONS.append(180, ExifInterface.ORIENTATION_ROTATE_270);
-        ORIENTATIONS.append(270, ExifInterface.ORIENTATION_ROTATE_180);
-    }
+        private final RenderScript mRs;
 
-    private CameraCharacteristics characteristics;
-
-    public PostProcessorRAW(FullscreenActivity activity, CameraFormatSize cameraFormatSize, CameraCharacteristics characteristics) {
-        super(activity, cameraFormatSize);
-        this.characteristics = characteristics;
+    public PostProcessorRAW(CameraServer.CameraStreamFormat cameraFormatSize, RenderScript rs) {
+        super(cameraFormatSize);
+        mRs = rs;
     }
 
     @Override
-    protected String[] internalProcessAndSave(ImageData[] images) {
-        RenderScript rs = RenderScript.create(activity);
+    public String[] processToFiles(ImageData[] images) {
+        DevicePreset.RawProcessSettings settings = mDevice.getRawProcessSettings(mStreamFormat.id, images[images.length - 1].result);
+
+        int rotate = images[images.length - 1].motion.mRot;
 
         Image raw = images[0].image;
         Bitmap rawBitmap = Bitmap.createBitmap(raw.getWidth(), raw.getHeight(), Bitmap.Config.ARGB_8888);
         byte[] rawPlane = new byte[raw.getPlanes()[0].getRowStride() * raw.getHeight()];
+
         // Render RAW image to a bitmap
         raw.getPlanes()[0].getBuffer().get(rawPlane);
         raw.getPlanes()[0].getBuffer().rewind();
-        RawConverter.convertToSRGB(rs, raw.getWidth(),
+
+        RawConverter.convertToSRGB(mRs, raw.getWidth(),
                 raw.getHeight(), raw.getPlanes()[0].getRowStride(), rawPlane,
-                characteristics, images[0].result, /*offsetX*/0, /*offsetY*/0,
+                mStreamFormat.characteristics, images[0].result, /*offsetX*/0, /*offsetY*/0,
+                settings.saturationFactor, settings.tonemapStrength,
                 /*out*/rawBitmap);
 
-        rawBitmap = BitmapTransformations.sharpen(rs, rawBitmap);
-        rs.destroy();
+        switch (settings.sharpenLevel) {
+            case 1:
+                rawBitmap = BitmapTransformations.sharpen(mRs, rawBitmap);
+                break;
+            case -1:
+                rawBitmap = BitmapTransformations.blur(mRs, rawBitmap);
+                break;
+        }
 
         String mediaFile = getSavePath("jpeg");
         try {
@@ -62,7 +64,7 @@ public class PostProcessorRAW extends PostProcessor {
             fos.close();
 
             ExifInterface exif = new ExifInterface(mediaFile);
-            exif.setAttribute(ExifInterface.TAG_ORIENTATION, String.valueOf(ORIENTATIONS.get(images[0].motion.mRot)));
+            exif.setAttribute(ExifInterface.TAG_ORIENTATION, String.valueOf(mDevice.getExifRotation(mStreamFormat.id, rotate)));
             exif.saveAttributes();
         } catch (IOException e) {
             e.printStackTrace();
@@ -97,15 +99,15 @@ public class PostProcessorRAW extends PostProcessor {
         buffs[0].put(bs);
 
         String file = getSavePath("dng");
-        DngCreator dngCreator = new DngCreator(characteristics, img.result);
+        DngCreator dngCreator = new DngCreator(mStreamFormat.characteristics, img.result);
         try {
             FileOutputStream output = new FileOutputStream(file);
-            dngCreator.writeByteBuffer(output, cameraFormatSize.size, buffs[0], 0);
+            dngCreator.writeByteBuffer(output, mStreamFormat.size, buffs[0], 0);
             output.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        dngCreator.setOrientation(ORIENTATIONS.get(img.motion.mRot));
+        //dngCreator.setOrientation(ORIENTATIONS.get(img.motion.mRot));
         dngCreator.close();
 
         return new String[] { file };

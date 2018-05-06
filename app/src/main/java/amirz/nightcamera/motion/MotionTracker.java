@@ -1,4 +1,4 @@
-package amirz.nightcamera;
+package amirz.nightcamera.motion;
 
 import android.content.Context;
 import android.hardware.Sensor;

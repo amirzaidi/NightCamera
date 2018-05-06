@@ -48,6 +48,8 @@ uint rawWidth; // Width of raw buffer
 uint rawHeight; // Height of raw buffer
 float3 neutralPoint; // The camera neutral
 float4 toneMapCoeffs; // Coefficients for a polynomial tonemapping curve
+float saturationFactor;
+
 // Interpolate gain map to find per-channel gains at a given pixel
 static float4 getGain(uint x, uint y) {
     float interpX = (((float) x) / rawWidth) * gainMapWidth;
@@ -340,9 +342,12 @@ static float3 demosaic(uint x, uint y, uint cfa, float* inputArray) {
     }
     return pRGB;
 }
+
+const static float3 gMonoMult = {0.299f, 0.587f, 0.114f};
+
 // Full RAW->ARGB bitmap conversion kernel
 uchar4 RS_KERNEL convert_RAW_To_ARGB(uint x, uint y) {
-    float3 pRGB;
+    float3 pRGB, sRGB;
     uint xP = x + offsetX;
     uint yP = y + offsetY;
     if (xP == 0) xP = 1;
@@ -356,5 +361,10 @@ uchar4 RS_KERNEL convert_RAW_To_ARGB(uint x, uint y) {
     load3x3(xP, yP, inputRawBuffer, /*out*/ patch);
     linearizeAndGainmap(xP, yP, blackLevelPattern, whiteLevel, cfaPattern, /*inout*/patch);
     pRGB = demosaic(xP, yP, cfaPattern, patch);
-    return rsPackColorTo8888(applyColorspace(pRGB));
+    sRGB = applyColorspace(pRGB);
+
+    //Apply additional saturation
+    sRGB = mix(dot(sRGB.rgb, gMonoMult), sRGB.rgb, saturationFactor);
+
+    return rsPackColorTo8888(sRGB);
 }

@@ -1,72 +1,35 @@
 package amirz.nightcamera.processor;
 
-import android.hardware.camera2.CameraAccessException;
-import android.media.MediaScannerConnection;
+import android.annotation.SuppressLint;
 import android.os.Environment;
-import android.os.Handler;
-import android.os.HandlerThread;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import amirz.nightcamera.CameraFormatSize;
-import amirz.nightcamera.FullscreenActivity;
-import amirz.nightcamera.ImageData;
+import amirz.nightcamera.data.ImageData;
+import amirz.nightcamera.device.DevicePreset;
+import amirz.nightcamera.server.CameraServer;
 
 public abstract class PostProcessor {
-    private final static String TAG = PostProcessor.class.getName();
-
-    public final static int maxConcurrentProcessing = 3;
-    public Semaphore waiter = new Semaphore(maxConcurrentProcessing - 1);
-
+    CameraServer.CameraStreamFormat mStreamFormat;
+    DevicePreset mDevice;
     private AtomicInteger counter = new AtomicInteger(0);
-    private HandlerThread thread;
-    public Handler handler;
 
-    protected FullscreenActivity activity;
-    protected CameraFormatSize cameraFormatSize;
-
-    public PostProcessor(FullscreenActivity activity, CameraFormatSize cameraFormatSize) {
-        this.activity = activity;
-        this.cameraFormatSize = cameraFormatSize;
-
-        thread = new HandlerThread(TAG);
-        thread.start();
-        handler = new Handler(thread.getLooper());
+    PostProcessor(CameraServer.CameraStreamFormat streamFormat) {
+        mStreamFormat = streamFormat;
+        mDevice = DevicePreset.getInstance();
     }
 
-    public void process(final ImageData[] images) throws CameraAccessException {
-        if (images.length != 0) {
-            waiter.acquireUninterruptibly();
-            handler.post(new Runnable() {
-                @Override
-                public void run() {
-                    MediaScannerConnection.scanFile(activity, internalProcessAndSave(images), null, null);
-                    for (ImageData img : images)
-                        img.close();
-                    waiter.release();
-                    activity.toast("Saved");
-                }
-            });
-        }
-    }
-
-    protected String getSavePath(String extension) {
+    @SuppressLint("SimpleDateFormat")
+    String getSavePath(String extension) {
         File folder = new File(Environment.getExternalStorageDirectory() + "/DCIM/NightCamera");
         if (!folder.exists() && !folder.mkdir())
             throw new RuntimeException("Cannot create /DCIM/NightCamera");
-        return folder.getPath()+ File.separator + new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss").format(new Date()) + "_" + counter.incrementAndGet() + "." + extension;
+        String date = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss").format(new Date());
+        return folder.getPath()+ File.separator + date + "_" + counter.incrementAndGet() + "." + extension;
     }
 
-    protected abstract String[] internalProcessAndSave(ImageData[] images);
-
-    public void close() {
-        if (thread != null) {
-            thread.quitSafely();
-            thread = null;
-        }
-    }
+    public abstract String[] processToFiles(ImageData[] images);
 }

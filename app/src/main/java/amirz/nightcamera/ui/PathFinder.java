@@ -1,4 +1,4 @@
-package amirz.nightcamera;
+package amirz.nightcamera.ui;
 
 import android.graphics.SurfaceTexture;
 import android.util.Log;
@@ -9,6 +9,8 @@ import android.view.TextureView;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.RotateAnimation;
+
+import amirz.nightcamera.FullscreenActivity;
 
 public class PathFinder {
     private float UiRotate = 0;
@@ -70,7 +72,7 @@ public class PathFinder {
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
                 surface.setDefaultBufferSize(1440, 1080);
                 previewSurface = new Surface(surface);
-                activity.camera.openCamera(activity.useCamera, previewSurface);
+                activity.onSurfaceReady();
             }
 
             @Override
@@ -90,13 +92,13 @@ public class PathFinder {
                 }
 
                 if (rotateAnimation == null) {
-                    float newRot = activity.motionTracker.getRotation();
+                    float newRot = activity.mMotionTracker.getRotation();
                     if (UiRotate != newRot) {
                         rotateAnimation = new RotateAnimation(UiRotate, newRot, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
                         rotateAnimation.setFillAfter(true);
                         rotateAnimation.setDuration(2 * (long)Math.abs(newRot - UiRotate));
-                        activity.switcher.startAnimation(rotateAnimation);
-                        activity.video.startAnimation(rotateAnimation);
+                        activity.mSwitcher.startAnimation(rotateAnimation);
+                        activity.mVideo.startAnimation(rotateAnimation);
                         UiRotate = newRot;
                     }
                 }

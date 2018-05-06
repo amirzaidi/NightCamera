@@ -7,25 +7,16 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import amirz.nightcamera.CameraFormatSize;
-import amirz.nightcamera.FullscreenActivity;
-import amirz.nightcamera.ImageData;
+import amirz.nightcamera.data.ImageData;
+import amirz.nightcamera.server.CameraServer;
 
 public class PostProcessorJPEG extends PostProcessor {
-    private static SparseIntArray ORIENTATIONS = new SparseIntArray();
-    static { //Regular camera
-        ORIENTATIONS.append(0, ExifInterface.ORIENTATION_ROTATE_270);
-        ORIENTATIONS.append(90, ExifInterface.ORIENTATION_NORMAL);
-        ORIENTATIONS.append(180, ExifInterface.ORIENTATION_ROTATE_90);
-        ORIENTATIONS.append(270, ExifInterface.ORIENTATION_ROTATE_180);
-    }
-
-    public PostProcessorJPEG(FullscreenActivity activity, CameraFormatSize cameraFormatSize) {
-        super(activity, cameraFormatSize);
+    public PostProcessorJPEG(CameraServer.CameraStreamFormat cameraFormatSize) {
+        super(cameraFormatSize);
     }
 
     @Override
-    protected String[] internalProcessAndSave(ImageData[] images) {
+    public String[] processToFiles(ImageData[] images) {
         int rotate = images[images.length - 1].motion.mRot;
         String mediaFile = getSavePath("jpeg");
 
@@ -39,7 +30,7 @@ public class PostProcessorJPEG extends PostProcessor {
             output.close();
 
             ExifInterface exif = new ExifInterface(mediaFile);
-            exif.setAttribute(ExifInterface.TAG_ORIENTATION, String.valueOf(ORIENTATIONS.get(rotate)));
+            exif.setAttribute(ExifInterface.TAG_ORIENTATION, String.valueOf(mDevice.getExifRotation(mStreamFormat.id, rotate)));
             exif.saveAttributes();
         } catch (IOException e) {
             e.printStackTrace();

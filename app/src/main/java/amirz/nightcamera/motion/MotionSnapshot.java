@@ -1,4 +1,4 @@
-package amirz.nightcamera;
+package amirz.nightcamera.motion;
 
 public class MotionSnapshot {
     public float[] mMovement;
