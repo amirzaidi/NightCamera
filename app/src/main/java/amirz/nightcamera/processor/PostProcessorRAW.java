@@ -15,6 +15,7 @@ import java.util.Arrays;
 
 import amirz.nightcamera.data.ImageData;
 import amirz.nightcamera.device.DevicePreset;
+import amirz.nightcamera.dng.Parser;
 import amirz.nightcamera.processor.renderscript.BitmapTransformations;
 import amirz.nightcamera.processor.renderscript.RawConverter;
 import amirz.nightcamera.server.CameraServer;
@@ -40,6 +41,8 @@ public class PostProcessorRAW extends PostProcessor {
         // Render RAW image to a bitmap
         raw.getPlanes()[0].getBuffer().get(rawPlane);
         raw.getPlanes()[0].getBuffer().rewind();
+
+        //rawPlane = Parser.BYTES;
 
         RawConverter.convertToSRGB(mRs, raw.getWidth(),
                 raw.getHeight(), raw.getPlanes()[0].getRowStride(), rawPlane,
@@ -70,8 +73,9 @@ public class PostProcessorRAW extends PostProcessor {
             e.printStackTrace();
         }
 
-        if (true) return new String[] { mediaFile };
+        return new String[] { mediaFile };
 
+        /*
         ByteBuffer[] buffs = new ByteBuffer[images.length];
         //ByteBuffer[] buffs = new ByteBuffer[2];
         for (int i = 0; i < buffs.length; i++) {
@@ -110,6 +114,6 @@ public class PostProcessorRAW extends PostProcessor {
         //dngCreator.setOrientation(ORIENTATIONS.get(img.motion.mRot));
         dngCreator.close();
 
-        return new String[] { file };
+        return new String[] { file };*/
     }
 }

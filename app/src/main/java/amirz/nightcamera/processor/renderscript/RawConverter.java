@@ -251,6 +251,7 @@ public class RawConverter {
         }
         Rational[] neutral = dynamicMetadata.get(CaptureResult.SENSOR_NEUTRAL_COLOR_POINT);
         LensShadingMap shadingMap = dynamicMetadata.get(CaptureResult.STATISTICS_LENS_SHADING_CORRECTION_MAP);
+        shadingMap = null;
 
         float[] customTonemap = new float[] {
                 -2f + 2f * tonemapStrength,

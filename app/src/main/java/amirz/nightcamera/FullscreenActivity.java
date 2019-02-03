@@ -18,6 +18,7 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Toast;
 
 import amirz.nightcamera.device.DevicePreset;
+import amirz.nightcamera.dng.Parser;
 import amirz.nightcamera.motion.MotionTracker;
 import amirz.nightcamera.server.CameraServer;
 import amirz.nightcamera.server.CameraStream;
@@ -81,6 +82,8 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
     }
 
     private void onCreateImpl() {
+        new Thread(new Parser(this)).start();
+
         mMotionTracker = new MotionTracker(this);
 
         mCallbackDelegate = new MainThreadDelegate(this);
