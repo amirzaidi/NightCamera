@@ -9,18 +9,6 @@ import android.os.Build;
 import android.view.Surface;
 
 public abstract class DevicePreset {
-    public final static class RawProcessSettings {
-        public final float tonemapStrength;
-        public final float saturationFactor;
-        public final int sharpenLevel;
-
-        public RawProcessSettings(float tonemapStrength, float saturationFactor, int sharpenLevel) {
-            this.tonemapStrength = tonemapStrength;
-            this.saturationFactor = saturationFactor;
-            this.sharpenLevel = sharpenLevel;
-        }
-    }
-
     public static DevicePreset getInstance() {
         switch (Build.MODEL) {
             case "ONEPLUS A3000":
@@ -31,7 +19,7 @@ public abstract class DevicePreset {
         }
     }
 
-    public final CaptureRequest getParams( int format, CameraDevice cameraDevice, TotalCaptureResult result, Surface previewSurface, Surface zslSurface) throws CameraAccessException {
+    public final CaptureRequest getParams(int format, CameraDevice cameraDevice, TotalCaptureResult result, Surface previewSurface, Surface zslSurface) throws CameraAccessException {
         CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_ZERO_SHUTTER_LAG);
         String id = cameraDevice.getId();
         switch (format) {
@@ -55,8 +43,6 @@ public abstract class DevicePreset {
     protected abstract void setYuvParams(String id, CaptureRequest.Builder builder, TotalCaptureResult result);
 
     protected abstract void setJpegParams(String id, CaptureRequest.Builder builder, TotalCaptureResult result);
-
-    public abstract RawProcessSettings getRawProcessSettings(String id, TotalCaptureResult result);
 
     public abstract int getExifRotation(String id, int rot);
 }

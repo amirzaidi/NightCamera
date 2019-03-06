@@ -18,7 +18,7 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.Toast;
 
 import amirz.nightcamera.device.DevicePreset;
-import amirz.nightcamera.dng.Parser;
+import amirz.nightcamera.gl.Shaders;
 import amirz.nightcamera.motion.MotionTracker;
 import amirz.nightcamera.server.CameraServer;
 import amirz.nightcamera.server.CameraStream;
@@ -37,8 +37,6 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
     private CameraStream mStream;
     public int useCamera = 0;
 
-    private RenderScript mRs;
-
     private PathFinder mPathFinder;
 
     public FloatingActionButton mSwitcher;
@@ -49,6 +47,8 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_fullscreen);
+
+        Shaders.load(this);
 
         if (DevicePreset.getInstance() == null) {
             Toast.makeText(this, "Device not supported", Toast.LENGTH_SHORT).show();
@@ -82,8 +82,6 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
     }
 
     private void onCreateImpl() {
-        new Thread(new Parser(this)).start();
-
         mMotionTracker = new MotionTracker(this);
 
         mCallbackDelegate = new MainThreadDelegate(this);
@@ -127,8 +125,6 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
                 mVideo*/
             }
         });
-
-        mRs = RenderScript.create(this);
     }
 
     public void onSurfaceReady() {
@@ -218,11 +214,6 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
     @Override
     public Surface getPreviewSurface() {
         return mPathFinder.previewSurface;
-    }
-
-    @Override
-    public RenderScript getRsInstance() {
-        return mRs;
     }
 
     @Override

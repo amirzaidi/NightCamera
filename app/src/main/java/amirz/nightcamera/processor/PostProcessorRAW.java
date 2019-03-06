@@ -1,119 +1,72 @@
 package amirz.nightcamera.processor;
 
-import android.graphics.Bitmap;
 import android.hardware.camera2.DngCreator;
-import android.media.Image;
-import android.renderscript.RenderScript;
-import android.support.media.ExifInterface;
 import android.util.Log;
-import android.util.SparseIntArray;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 import amirz.nightcamera.data.ImageData;
-import amirz.nightcamera.device.DevicePreset;
-import amirz.nightcamera.dng.Parser;
-import amirz.nightcamera.processor.renderscript.BitmapTransformations;
-import amirz.nightcamera.processor.renderscript.RawConverter;
+import amirz.nightcamera.gl.GLCore;
+import amirz.nightcamera.gl.GLProgram;
+import amirz.nightcamera.gl.generic.GLTex;
 import amirz.nightcamera.server.CameraServer;
 
 public class PostProcessorRAW extends PostProcessor {
-        private final RenderScript mRs;
+    private static final String TAG = "PostProcessorRAW";
 
-    public PostProcessorRAW(CameraServer.CameraStreamFormat cameraFormatSize, RenderScript rs) {
+    public PostProcessorRAW(CameraServer.CameraStreamFormat cameraFormatSize) {
         super(cameraFormatSize);
-        mRs = rs;
     }
 
     @Override
     public String[] processToFiles(ImageData[] images) {
-        DevicePreset.RawProcessSettings settings = mDevice.getRawProcessSettings(mStreamFormat.id, images[images.length - 1].result);
-
-        int rotate = images[images.length - 1].motion.mRot;
-
-        Image raw = images[0].image;
-        Bitmap rawBitmap = Bitmap.createBitmap(raw.getWidth(), raw.getHeight(), Bitmap.Config.ARGB_8888);
-        byte[] rawPlane = new byte[raw.getPlanes()[0].getRowStride() * raw.getHeight()];
-
-        // Render RAW image to a bitmap
-        raw.getPlanes()[0].getBuffer().get(rawPlane);
-        raw.getPlanes()[0].getBuffer().rewind();
-
-        //rawPlane = Parser.BYTES;
-
-        RawConverter.convertToSRGB(mRs, raw.getWidth(),
-                raw.getHeight(), raw.getPlanes()[0].getRowStride(), rawPlane,
-                mStreamFormat.characteristics, images[0].result, /*offsetX*/0, /*offsetY*/0,
-                settings.saturationFactor, settings.tonemapStrength,
-                /*out*/rawBitmap);
-
-        switch (settings.sharpenLevel) {
-            case 1:
-                rawBitmap = BitmapTransformations.sharpen(mRs, rawBitmap);
-                break;
-            case -1:
-                rawBitmap = BitmapTransformations.blur(mRs, rawBitmap);
-                break;
-        }
-
-        String mediaFile = getSavePath("jpeg");
-        try {
-            FileOutputStream fos = new FileOutputStream(mediaFile);
-            rawBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-            rawBitmap.recycle();
-            fos.close();
-
-            ExifInterface exif = new ExifInterface(mediaFile);
-            exif.setAttribute(ExifInterface.TAG_ORIENTATION, String.valueOf(mDevice.getExifRotation(mStreamFormat.id, rotate)));
-            exif.saveAttributes();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return new String[] { mediaFile };
-
-        /*
-        ByteBuffer[] buffs = new ByteBuffer[images.length];
-        //ByteBuffer[] buffs = new ByteBuffer[2];
-        for (int i = 0; i < buffs.length; i++) {
-            buffs[i] = images[i].buffer(0);
-        }
-
-        Log.d("PostProcessorRAW", "Start");
-        byte[] bs = new byte[buffs[0].capacity()];
-        //bs = new byte[1024];
-        for (int offset = 0; offset < bs.length; offset += 2) {
-            int[] vals = new int[buffs.length];
-            for (int j = 0; j < buffs.length; j++) {
-                ByteBuffer buff = buffs[j];
-                vals[j] = (buff.get(offset + 1) << 8) + buff.get(offset);
-            }
-            Arrays.sort(vals);
-            int value = vals[vals.length / 2];
-            bs[offset] = (byte)(value & 0xFF);
-            bs[offset + 1] = (byte)((value >> 8) & 0xFF);
-        }
-        Log.d("PostProcessorRAW", "P1");
-        //Simple take average algorithm
-
         ImageData img = images[0];
-        buffs[0].put(bs);
+        ByteBuffer buffer;
+        if (images.length >= 8) {
+            Log.d(TAG, "Full shutter, merging frames");
+
+            int width = mStreamFormat.size.getWidth();
+            int height = mStreamFormat.size.getHeight();
+
+            GLCore core = new GLCore(width, height);
+            GLProgram program = (GLProgram) core.getProgram();
+
+            GLTex[] tex = new GLTex[8];
+            for (int i = 0; i < tex.length; i++) {
+                tex[i] = program.frameToTexture(images[i].buffer(0), width, height);
+            }
+
+            GLTex first = program.alignAndMerge(tex[0], tex[1], width, height);
+            GLTex second = program.alignAndMerge(tex[2], tex[3], width, height);
+            GLTex third = program.alignAndMerge(tex[4], tex[5], width, height);
+            GLTex fourth = program.alignAndMerge(tex[6], tex[7], width, height);
+
+            GLTex firstSecond = program.alignAndMerge(first, second, width, height);
+            GLTex thirdFourth = program.alignAndMerge(third, fourth, width, height);
+
+            program.alignAndMerge(firstSecond, thirdFourth, width, height);
+            buffer = core.resultBuffer();
+
+            core.close();
+        } else {
+            buffer = img.buffer(0);
+        }
 
         String file = getSavePath("dng");
+
         DngCreator dngCreator = new DngCreator(mStreamFormat.characteristics, img.result);
+        dngCreator.setOrientation(mDevice.getExifRotation(mStreamFormat.id, img.motion.mRot));
         try {
             FileOutputStream output = new FileOutputStream(file);
-            dngCreator.writeByteBuffer(output, mStreamFormat.size, buffs[0], 0);
+            dngCreator.writeByteBuffer(output, mStreamFormat.size, buffer, 0);
             output.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        //dngCreator.setOrientation(ORIENTATIONS.get(img.motion.mRot));
         dngCreator.close();
 
-        return new String[] { file };*/
+        return new String[] { file };
     }
 }

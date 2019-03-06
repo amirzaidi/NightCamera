@@ -16,9 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import amirz.nightcamera.data.ImageData;
 import amirz.nightcamera.device.DevicePreset;
 import amirz.nightcamera.processor.PostProcessor;
-import amirz.nightcamera.processor.PostProcessorJPEG;
 import amirz.nightcamera.processor.PostProcessorRAW;
-import amirz.nightcamera.processor.PostProcessorYUV;
 import amirz.nightcamera.zsl.CameraZSLQueue;
 
 /**
@@ -53,14 +51,10 @@ public class CameraStream extends CameraDevice.StateCallback {
 
         switch (mStreamFormat.format) {
             case ImageFormat.RAW_SENSOR:
-                mProcessor = new PostProcessorRAW(mStreamFormat, mStreamCallbacks.getRsInstance());
+                mProcessor = new PostProcessorRAW(mStreamFormat);
                 break;
-            case ImageFormat.YUV_420_888:
-                mProcessor = new PostProcessorYUV(mStreamFormat);
-                break;
-            case ImageFormat.JPEG:
-                mProcessor = new PostProcessorJPEG(mStreamFormat);
-                break;
+            default:
+                throw new RuntimeException("Format not available");
         }
 
         mThread = new HandlerThread(TAG);
@@ -115,11 +109,9 @@ public class CameraStream extends CameraDevice.StateCallback {
                 mHandler.postDelayed(new Runnable() {
                     @Override
                     public void run() {
-                        refreshPreviewRequest();
+                        //refreshPreviewRequest();
                     }
                 }, 1000); //Reset preview request every second
-
-                //mSession.setRepeatingBurst() for multi-frame HDR
             } catch (CameraAccessException ignored) {
             }
         }

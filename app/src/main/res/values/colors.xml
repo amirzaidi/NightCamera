@@ -8,4 +8,6 @@
 
     <color name="colorBackground">#0A0A0A</color>
     <color name="colorFabs">#050505</color>
+
+    <color name="ic_launcher_background">#1a73e8</color>
 </resources>

@@ -20,11 +20,6 @@ public class MainThreadDelegate implements CameraStreamCallbacks {
     }
 
     @Override
-    public RenderScript getRsInstance() {
-        return mActivity.getRsInstance();
-    }
-
-    @Override
     public MotionTracker getMotionTracker() {
         return mActivity.getMotionTracker();
     }
