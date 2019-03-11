@@ -1,5 +1,6 @@
 package amirz.nightcamera.processor;
 
+import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.DngCreator;
 import android.util.Log;
 
@@ -29,6 +30,7 @@ public class PostProcessorRAW extends PostProcessor {
 
             int width = mStreamFormat.size.getWidth();
             int height = mStreamFormat.size.getHeight();
+            int cfa = mStreamFormat.characteristics.get(CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT);
 
             GLCore core = new GLCore(width, height);
             GLProgram program = (GLProgram) core.getProgram();
@@ -38,15 +40,15 @@ public class PostProcessorRAW extends PostProcessor {
                 tex[i] = program.frameToTexture(images[i].buffer(0), width, height);
             }
 
-            GLTex first = program.alignAndMerge(tex[0], tex[1], width, height);
-            GLTex second = program.alignAndMerge(tex[2], tex[3], width, height);
-            GLTex third = program.alignAndMerge(tex[4], tex[5], width, height);
-            GLTex fourth = program.alignAndMerge(tex[6], tex[7], width, height);
+            GLTex first = program.alignAndMerge(tex[0], tex[1], width, height, cfa);
+            GLTex second = program.alignAndMerge(tex[2], tex[3], width, height, cfa);
+            GLTex third = program.alignAndMerge(tex[4], tex[5], width, height, cfa);
+            GLTex fourth = program.alignAndMerge(tex[6], tex[7], width, height, cfa);
 
-            GLTex firstSecond = program.alignAndMerge(first, second, width, height);
-            GLTex thirdFourth = program.alignAndMerge(third, fourth, width, height);
+            GLTex firstSecond = program.alignAndMerge(first, second, width, height, cfa);
+            GLTex thirdFourth = program.alignAndMerge(third, fourth, width, height, cfa);
 
-            program.alignAndMerge(firstSecond, thirdFourth, width, height);
+            //program.alignAndMerge(firstSecond, thirdFourth, width, height);
             buffer = core.resultBuffer();
 
             core.close();

@@ -8,9 +8,12 @@ import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.util.Log;
+import android.util.Range;
 import android.util.Size;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -81,10 +84,11 @@ public class CameraServer {
                 }
 
                 for (int prefFormat : FORMAT_PREFERENCE) {
-                    if (outFormats.contains(prefFormat)) {
+                    if (outFormats.contains(prefFormat) && format == -1) {
                         format = prefFormat;
-                        break;
                     }
+                    Size[] sizes = map.getOutputSizes(prefFormat);
+                    Log.d(TAG, "Sizes for " + prefFormat + ": " + Arrays.toString(sizes));
                 }
 
                 if (format != -1) {

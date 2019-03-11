@@ -3,6 +3,7 @@ package amirz.nightcamera.gl;
 import android.util.Log;
 
 import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.util.Arrays;
 
@@ -41,9 +42,10 @@ public class GLProgram extends GLProgramBase {
         return new GLTex(width, height, 1, GLTex.Format.UInt16, frame);
     }
 
-    public GLTex alignAndMerge(GLTex centerFrame, GLTex alignFrame, int width, int height) {
+    public GLTex alignAndMerge(GLTex centerFrame, GLTex alignFrame, int width, int height, int cfa) {
         useProgram(mProgramScale);
         seti("raw", 0);
+        seti("cfa", cfa);
 
         glViewport(0, 0, width, height);
 
@@ -75,18 +77,18 @@ public class GLProgram extends GLProgramBase {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST_MIPMAP_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
 
-        GLTex alignTex = new GLTex(width / 2, height / 2, 4, GLTex.Format.UInt16, null);
+        GLTex alignTex = new GLTex(width / 2, height / 2, 4, GLTex.Format.Float16, null);
         alignTex.setFrameBuffer();
 
         int[] alignment = new int[2];
 
-        final int maxLod = 3;
+        final int maxLod = 5;
         seti("MaxLOD", maxLod);
 
         int maxLodWidth = width >> maxLod;
         int maxLodHeight = height >> maxLod;
 
-        ShortBuffer buffer = ShortBuffer.allocate((maxLodWidth - 2) * (maxLodHeight - 2) * 4);
+        FloatBuffer buffer = FloatBuffer.allocate((maxLodWidth - 2) * (maxLodHeight - 2) * 4);
         glViewport(0, 0, maxLodWidth - 2, maxLodHeight - 2);
 
         int lod = maxLod;
@@ -95,33 +97,36 @@ public class GLProgram extends GLProgramBase {
             alignment[1] *= 2;
             if (lod == 0) break;
 
-            double[][] counts = new double[2][3];
+            double[] diff = new double[9];
 
             seti("LOD", lod);
             seti("alignment", alignment);
 
-            draw();
-            glReadPixels(0, 0, maxLodWidth - 2, maxLodHeight - 2, GL_RGBA_INTEGER, GL_UNSIGNED_SHORT, buffer);
+            for (int dy = 0; dy < 3; dy++) {
+                seti("dy", dy - 1);
+                draw();
+                glReadPixels(0, 0, maxLodWidth - 2, maxLodHeight - 2, GL_RGBA, GL_FLOAT, buffer);
 
-            for (int i = 0; i < (maxLodWidth - 2) * (maxLodHeight - 2); i += 4) {
-                if (buffer.get(i + 3) == 1) {
-                    int x = buffer.get(i);
-                    int y = buffer.get(i + 1);
-                    double diff = buffer.get(i + 2);
-                    counts[0][x + 1] += diff;
-                    counts[1][y + 1] += diff;
+                for (int i = 0; i < (maxLodWidth - 2) * (maxLodHeight - 2); i += 4) {
+                    float intensity = buffer.get(i + 3);
+                    for (int dx = 0; dx < 3; dx++) {
+                        diff[dy * 3 + dx] += buffer.get(i + dx) * intensity;
+                    }
                 }
             }
 
-            //Log.d(TAG, "Counts " + Arrays.toString(counts[0]) + " " + Arrays.toString(counts[1]));
-
-            for (int c = 0; c < 2; c++) {
-                if (counts[c][0] > counts[c][1] && counts[c][0] > counts[c][2]) {
-                    alignment[c]--;
-                } else if (counts[c][2] > counts[c][1] && counts[c][2] > counts[c][0]) {
-                    alignment[c]++;
+            int minDiff = diff.length / 2;
+            for (int i = 0; i < diff.length; i++) {
+                if (diff[i] < diff[minDiff]) {
+                    minDiff = i;
                 }
             }
+
+            alignment[0] += (minDiff % 3) - 1;
+            alignment[1] += (minDiff / 3) - 1;
+
+            Log.d(TAG, "Diff " + Arrays.toString(diff) + " (min " + minDiff
+                    + ") -> align " + Arrays.toString(alignment));
 
             lod--;
         }

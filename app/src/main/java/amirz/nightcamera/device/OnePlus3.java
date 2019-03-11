@@ -27,7 +27,7 @@ public class OnePlus3 extends DevicePreset {
 
     @Override
     protected void setRawParams(String id, CaptureRequest.Builder builder, TotalCaptureResult result) {
-        builder.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_ON);
+        /*builder.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_ON);
         boolean lowLight = result != null && result.get(CaptureResult.SENSOR_SENSITIVITY) > 750;
 
         int exposureCompensation = 0;
@@ -48,7 +48,7 @@ public class OnePlus3 extends DevicePreset {
         }
 
         builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, exposureCompensation);
-        builder.set(CaptureRequest.NOISE_REDUCTION_MODE, CaptureRequest.NOISE_REDUCTION_MODE_OFF);
+        builder.set(CaptureRequest.NOISE_REDUCTION_MODE, CaptureRequest.NOISE_REDUCTION_MODE_OFF);*/
     }
 
     @Override

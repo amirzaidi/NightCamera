@@ -1,7 +1,6 @@
 package amirz.nightcamera.gl;
 
 import java.nio.ByteBuffer;
-import java.nio.ShortBuffer;
 
 import amirz.nightcamera.gl.generic.GLCoreBase;
 import amirz.nightcamera.gl.generic.GLProgramBase;

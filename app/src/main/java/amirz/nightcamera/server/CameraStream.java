@@ -103,7 +103,7 @@ public class CameraStream extends CameraDevice.StateCallback {
                 mSession.stopRepeating();
                 Surface previewSurface = mStreamCallbacks.getPreviewSurface();
                 Surface zslSurface = mZSLQueue.getReadSurface();
-                final CaptureRequest request = mDevice.getParams(mStreamFormat.format, mCamera, mZSLQueue.getLastResult(), previewSurface, zslSurface);
+                final CaptureRequest request = mDevice.getParams(mStreamFormat, mCamera, mZSLQueue.getLastResult(), previewSurface, zslSurface);
                 mSession.setRepeatingRequest(request, mZSLQueue, mZSLQueue.mHandler);
 
                 mHandler.postDelayed(new Runnable() {

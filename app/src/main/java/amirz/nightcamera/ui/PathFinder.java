@@ -70,7 +70,7 @@ public class PathFinder {
 
             @Override
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-                surface.setDefaultBufferSize(1440, 1080);
+                surface.setDefaultBufferSize( 1440, 1080);
                 previewSurface = new Surface(surface);
                 activity.onSurfaceReady();
             }
