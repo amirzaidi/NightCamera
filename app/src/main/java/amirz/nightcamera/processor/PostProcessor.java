@@ -16,6 +16,7 @@ public abstract class PostProcessor {
     CameraServer.CameraStreamFormat mStreamFormat;
     DevicePreset mDevice;
     private AtomicInteger counter = new AtomicInteger(0);
+    private String mLastDate;
 
     PostProcessor(CameraServer.CameraStreamFormat streamFormat) {
         mStreamFormat = streamFormat;
@@ -23,12 +24,18 @@ public abstract class PostProcessor {
     }
 
     @SuppressLint("SimpleDateFormat")
-    String getSavePath(String extension) {
+    synchronized String getSavePath(String extension) {
         File folder = new File(Environment.getExternalStorageDirectory() + "/DCIM/NightCamera");
         if (!folder.exists() && !folder.mkdir())
             throw new RuntimeException("Cannot create /DCIM/NightCamera");
-        String date = new SimpleDateFormat("dd-MM-yyyy_HH-mm-ss").format(new Date());
-        return folder.getPath()+ File.separator + date + "_" + counter.incrementAndGet() + "." + extension;
+        String date = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        if (date.equals(mLastDate)) {
+            date += "_" + counter.incrementAndGet();
+        } else {
+            mLastDate = date;
+            counter.set(1);
+        }
+        return folder.getPath() + File.separator + "IMG_" + date + "." + extension;
     }
 
     public abstract String[] processToFiles(ImageData[] images);
