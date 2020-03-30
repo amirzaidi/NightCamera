@@ -26,7 +26,6 @@ public class GLProgram extends GLProgramBase {
     private final int mProgramMerge;
 
     private final int[] fbo = new int[1];
-    private GLTex mCenterFrame, mAlignFrame;
 
     public GLProgram() {
         glGetIntegerv(GL_FRAMEBUFFER_BINDING, fbo, 0);
@@ -49,15 +48,13 @@ public class GLProgram extends GLProgramBase {
 
         glViewport(0, 0, width, height);
 
-        mCenterFrame = centerFrame;
-        mCenterFrame.bind(GL_TEXTURE0);
+        centerFrame.bind(GL_TEXTURE0);
 
         GLTex centerFrameScaled = new GLTex(width / 2, height / 2, 1, GLTex.Format.Float16, null);
         centerFrameScaled.setFrameBuffer();
         draw();
 
-        mAlignFrame = alignFrame;
-        mAlignFrame.bind(GL_TEXTURE0);
+        alignFrame.bind(GL_TEXTURE0);
 
         GLTex alignFrameScaled = new GLTex(width / 2, height / 2, 1, GLTex.Format.Float16, null);
         alignFrameScaled.setFrameBuffer();
@@ -82,7 +79,7 @@ public class GLProgram extends GLProgramBase {
 
         int[] alignment = new int[2];
 
-        final int maxLod = 5;
+        final int maxLod = 4;
         seti("MaxLOD", maxLod);
 
         int maxLodWidth = width >> maxLod;
@@ -139,10 +136,10 @@ public class GLProgram extends GLProgramBase {
         useProgram(mProgramMerge);
 
         seti("centerFrame", 0);
-        mCenterFrame.bind(GL_TEXTURE0);
+        centerFrame.bind(GL_TEXTURE0);
 
         seti("alignFrame", 2);
-        mAlignFrame.bind(GL_TEXTURE2);
+        alignFrame.bind(GL_TEXTURE2);
 
         seti("alignment", alignment);
         seti("width", width);
@@ -154,8 +151,8 @@ public class GLProgram extends GLProgramBase {
         glViewport(0, 0, width, height);
         draw();
 
-        mCenterFrame.delete();
-        mAlignFrame.delete();
+        centerFrame.delete();
+        alignFrame.delete();
 
         Log.d(TAG, "Merged");
         return out;

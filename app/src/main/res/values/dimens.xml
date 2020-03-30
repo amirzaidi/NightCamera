@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="shutter_margin">108px</dimen>
-    <dimen name="shutter_size">284px</dimen>
-    <dimen name="shutter_stroke">16px</dimen>
-    <dimen name="semishutter_size">192px</dimen>
+    <dimen name="shutter_margin">32dp</dimen>
+    <dimen name="shutter_size">96dp</dimen>
+    <dimen name="shutter_stroke">2dp</dimen>
+    <dimen name="semishutter_size">64dp</dimen>
 </resources>

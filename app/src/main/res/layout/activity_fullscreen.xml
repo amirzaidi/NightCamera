@@ -1,17 +1,21 @@
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/fullscreen_content"
-    android:layout_width="1080px"
-    android:layout_height="1920px"
     android:background="@color/colorBackground"
     android:keepScreenOn="true"
-    tools:context="amirz.nightcamera.FullscreenActivity">
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
 
     <LinearLayout
-        android:layout_width="1080px"
-        android:layout_height="480px"
-        android:layout_gravity="bottom"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:gravity="center"
         android:orientation="horizontal">
 
@@ -20,6 +24,7 @@
             android:layout_width="@dimen/semishutter_size"
             android:layout_height="@dimen/semishutter_size"
             android:clickable="true"
+            android:focusable="true"
             android:theme="@style/Theme.AppCompat.NoActionBar"
             app:backgroundTint="@color/colorFabs"
             app:borderWidth="0dp"
@@ -33,6 +38,7 @@
             android:layout_marginLeft="@dimen/shutter_margin"
             android:layout_marginRight="@dimen/shutter_margin"
             android:clickable="true"
+            android:focusable="true"
             android:theme="@style/Theme.AppCompat.NoActionBar"
             app:backgroundTint="@color/colorFabs"
             app:borderWidth="0dp"
@@ -44,6 +50,7 @@
             android:layout_width="@dimen/semishutter_size"
             android:layout_height="@dimen/semishutter_size"
             android:clickable="true"
+            android:focusable="true"
             android:theme="@style/Theme.AppCompat.NoActionBar"
             app:backgroundTint="@color/colorFabs"
             app:borderWidth="0dp"
@@ -51,4 +58,4 @@
             app:srcCompat="@drawable/video_vector" />
     </LinearLayout>
 
-</FrameLayout>
+</LinearLayout>

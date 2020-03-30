@@ -1,7 +1,9 @@
 package amirz.nightcamera.processor;
 
 import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.DngCreator;
+import android.hardware.camera2.params.LensShadingMap;
 import android.util.Log;
 
 import java.io.FileOutputStream;
@@ -25,7 +27,7 @@ public class PostProcessorRAW extends PostProcessor {
     public String[] processToFiles(ImageData[] images) {
         ImageData img = images[0];
         ByteBuffer buffer;
-        if (images.length >= 8) {
+        if (images.length >= 8 && false) {
             Log.d(TAG, "Full shutter, merging frames");
 
             int width = mStreamFormat.size.getWidth();
@@ -42,20 +44,22 @@ public class PostProcessorRAW extends PostProcessor {
 
             GLTex first = program.alignAndMerge(tex[0], tex[1], width, height, cfa);
             GLTex second = program.alignAndMerge(tex[2], tex[3], width, height, cfa);
-            GLTex third = program.alignAndMerge(tex[4], tex[5], width, height, cfa);
-            GLTex fourth = program.alignAndMerge(tex[6], tex[7], width, height, cfa);
+            //GLTex third = program.alignAndMerge(tex[4], tex[5], width, height, cfa);
+            //GLTex fourth = program.alignAndMerge(tex[6], tex[7], width, height, cfa);
 
             GLTex firstSecond = program.alignAndMerge(first, second, width, height, cfa);
-            GLTex thirdFourth = program.alignAndMerge(third, fourth, width, height, cfa);
+            //GLTex thirdFourth = program.alignAndMerge(third, fourth, width, height, cfa);
 
-            //program.alignAndMerge(firstSecond, thirdFourth, width, height);
+            //program.alignAndMerge(firstSecond, thirdFourth, width, height, cfa);
             buffer = core.resultBuffer();
 
             core.close();
         } else {
+            Log.d(TAG, "Using first frame");
             buffer = img.buffer(0);
+            LensShadingMap map = img.result.get(CaptureResult.STATISTICS_LENS_SHADING_CORRECTION_MAP);
+            Log.d(TAG, "Map = " + (map != null));
         }
-
         String file = getSavePath("dng");
 
         DngCreator dngCreator = new DngCreator(mStreamFormat.characteristics, img.result);

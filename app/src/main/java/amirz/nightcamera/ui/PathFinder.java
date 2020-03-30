@@ -1,28 +1,27 @@
 package amirz.nightcamera.ui;
 
+import android.annotation.SuppressLint;
 import android.graphics.SurfaceTexture;
-import android.util.Log;
-import android.view.GestureDetector;
-import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.TextureView;
-import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.RotateAnimation;
+import android.widget.LinearLayout;
 
 import amirz.nightcamera.FullscreenActivity;
 
 public class PathFinder {
     private float UiRotate = 0;
 
-    private GestureDetector gestureDetector;
-    private View.OnTouchListener touchListener;
-    private TextureView.SurfaceTextureListener textureListener;
+    //private GestureDetector gestureDetector;
+    //private View.OnTouchListener touchListener;
 
     public Surface previewSurface;
 
-    public PathFinder(TextureView view, final FullscreenActivity activity) {
-        gestureDetector =  new GestureDetector(activity, new GestureDetector.SimpleOnGestureListener() {
+    @SuppressLint("ClickableViewAccessibility")
+    public PathFinder(TextureView tv, final FullscreenActivity activity) {
+        /*
+        gestureDetector = new GestureDetector(activity, new GestureDetector.SimpleOnGestureListener() {
             private static final int SWIPE_THRESHOLD = 100;
             private static final int SWIPE_VELOCITY_THRESHOLD = 100;
 
@@ -56,23 +55,16 @@ public class PathFinder {
             }
         });
 
-        touchListener = new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View view, MotionEvent motionEvent) {
-                return gestureDetector.onTouchEvent(motionEvent);
-            }
-        };
+        tv.setOnTouchListener((view1, motionEvent) -> gestureDetector.onTouchEvent(motionEvent));
+        */
 
-        view.setOnTouchListener(touchListener);
-
-        textureListener = new TextureView.SurfaceTextureListener() {
+        tv.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             private RotateAnimation rotateAnimation;
 
             @Override
             public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-                surface.setDefaultBufferSize( 1440, 1080);
                 previewSurface = new Surface(surface);
-                activity.onSurfaceReady();
+                activity.onSurfaceReady(width, height);
             }
 
             @Override
@@ -86,7 +78,7 @@ public class PathFinder {
 
             @Override
             public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-                //Update every frame -> Sync regular updates here
+                // Update every frame -> Sync regular updates here
                 if (rotateAnimation != null && rotateAnimation.hasEnded()) {
                     rotateAnimation = null;
                 }
@@ -96,15 +88,14 @@ public class PathFinder {
                     if (UiRotate != newRot) {
                         rotateAnimation = new RotateAnimation(UiRotate, newRot, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
                         rotateAnimation.setFillAfter(true);
-                        rotateAnimation.setDuration(2 * (long)Math.abs(newRot - UiRotate));
+                        rotateAnimation.setDuration(2 * (long) Math.abs(newRot - UiRotate));
+
                         activity.mSwitcher.startAnimation(rotateAnimation);
                         activity.mVideo.startAnimation(rotateAnimation);
                         UiRotate = newRot;
                     }
                 }
             }
-        };
-
-        view.setSurfaceTextureListener(textureListener);
+        });
     }
 }

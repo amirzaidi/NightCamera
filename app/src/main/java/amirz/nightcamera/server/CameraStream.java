@@ -22,7 +22,7 @@ import amirz.nightcamera.zsl.CameraZSLQueue;
 /**
  * Single use stream, that gets disposed after being closed
  */
-public class CameraStream extends CameraDevice.StateCallback {
+public class CameraStream extends CameraDevice.StateCallback implements AutoCloseable {
     private final static String TAG = CameraStream.class.getName();
 
     private final DevicePreset mDevice;
@@ -34,10 +34,10 @@ public class CameraStream extends CameraDevice.StateCallback {
     private AtomicInteger mProcessCounter = new AtomicInteger(0);
 
     private HandlerThread mThread;
-    public Handler mHandler;
+    private Handler mHandler;
 
     private HandlerThread mProcessThread;
-    public Handler mProcessHandler;
+    private Handler mProcessHandler;
 
     private CameraDevice mCamera;
     private CameraCaptureSession mSession;
@@ -62,7 +62,7 @@ public class CameraStream extends CameraDevice.StateCallback {
         mHandler = new Handler(mThread.getLooper());
 
         mProcessThread = new HandlerThread(TAG);
-        mProcessThread.setPriority(Thread.MIN_PRIORITY);
+        //mProcessThread.setPriority(Thread.MIN_PRIORITY);
         mProcessThread.start();
         mProcessHandler = new Handler(mProcessThread.getLooper());
     }
@@ -106,11 +106,8 @@ public class CameraStream extends CameraDevice.StateCallback {
                 final CaptureRequest request = mDevice.getParams(mStreamFormat, mCamera, mZSLQueue.getLastResult(), previewSurface, zslSurface);
                 mSession.setRepeatingRequest(request, mZSLQueue, mZSLQueue.mHandler);
 
-                mHandler.postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        //refreshPreviewRequest();
-                    }
+                mHandler.postDelayed(() -> {
+                    //refreshPreviewRequest();
                 }, 1000); //Reset preview request every second
             } catch (CameraAccessException ignored) {
             }
@@ -122,16 +119,13 @@ public class CameraStream extends CameraDevice.StateCallback {
             final ImageData[] images = mZSLQueue.pullEntireQueue();
             if (images.length > 0) {
                 mStreamCallbacks.onProcessingCount(mProcessCounter.incrementAndGet());
-                mProcessHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        String[] files = mProcessor.processToFiles(images);
-                        for (ImageData img : images) {
-                            img.close();
-                        }
-                        mStreamCallbacks.onProcessingCount(mProcessCounter.decrementAndGet());
-                        mStreamCallbacks.onTaken(files);
+                mProcessHandler.post(() -> {
+                    String[] files = mProcessor.processToFiles(images);
+                    for (ImageData img : images) {
+                        img.close();
                     }
+                    mStreamCallbacks.onProcessingCount(mProcessCounter.decrementAndGet());
+                    mStreamCallbacks.onTaken(files);
                 });
             }
         }
@@ -139,15 +133,16 @@ public class CameraStream extends CameraDevice.StateCallback {
 
     @Override
     public void onDisconnected(@NonNull CameraDevice camera) {
-        closeStream();
+        close();
     }
 
     @Override
     public void onError(@NonNull CameraDevice camera, int error) {
-        closeStream();
+        close();
     }
 
-    public void closeStream() {
+    @Override
+    public void close() {
         if (mPreviewActive) {
             mPreviewActive = false;
             mStreamCallbacks.onCameraStopped();

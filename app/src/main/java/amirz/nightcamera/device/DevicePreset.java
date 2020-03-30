@@ -22,11 +22,32 @@ public abstract class DevicePreset {
             case "ONEPLUS A5003":
                 return new OnePlus3();
             default:
-                return null;
+                return new Generic();
         }
     }
 
-    public final CaptureRequest getParams(CameraServer.CameraStreamFormat stream, CameraDevice cameraDevice, TotalCaptureResult result, Surface previewSurface, Surface zslSurface) throws CameraAccessException {
+    private static class Generic extends DevicePreset {
+        @Override
+        protected void setRawParams(String id, CaptureRequest.Builder builder, TotalCaptureResult result) {
+        }
+
+        @Override
+        protected void setYuvParams(String id, CaptureRequest.Builder builder, TotalCaptureResult result) {
+        }
+
+        @Override
+        protected void setJpegParams(String id, CaptureRequest.Builder builder, TotalCaptureResult result) {
+        }
+
+        @Override
+        public int getExifRotation(String id, int rot) {
+            return 0;
+        }
+    }
+
+    public final CaptureRequest getParams(CameraServer.CameraStreamFormat stream,
+                                          CameraDevice cameraDevice, TotalCaptureResult result,
+                                          Surface previewSurface, Surface zslSurface) throws CameraAccessException {
         CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_ZERO_SHUTTER_LAG);
         String id = cameraDevice.getId();
         switch (stream.format) {
@@ -50,8 +71,8 @@ public abstract class DevicePreset {
 
         builder.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_ON);
         builder.set(CaptureRequest.STATISTICS_LENS_SHADING_MAP_MODE, CaptureRequest.STATISTICS_LENS_SHADING_MAP_MODE_ON);
-        builder.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO);
-        builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
+        //builder.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO);
+        //builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
         /*
         builder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF);
         builder.set(CaptureRequest.SENSOR_FRAME_DURATION, 100 * 1000000L);
@@ -62,6 +83,8 @@ public abstract class DevicePreset {
         builder.set(CaptureRequest.NOISE_REDUCTION_MODE, CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY);
         builder.set(CaptureRequest.CONTROL_CAPTURE_INTENT, CaptureRequest.CONTROL_CAPTURE_INTENT_MANUAL);
         */
+
+        //builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 6);
         return builder.build();
     }
 

@@ -1,6 +1,5 @@
 package amirz.nightcamera.ui;
 
-import android.renderscript.RenderScript;
 import android.view.Surface;
 
 import amirz.nightcamera.FullscreenActivity;
@@ -26,61 +25,31 @@ public class MainThreadDelegate implements CameraStreamCallbacks {
 
     @Override
     public void onCameraStartAvailable() {
-        mActivity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mActivity.onCameraStartAvailable();
-            }
-        });
+        mActivity.runOnUiThread(mActivity::onCameraStartAvailable);
     }
 
     @Override
     public void onCameraStarted() {
-        mActivity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mActivity.onCameraStarted();
-            }
-        });
+        mActivity.runOnUiThread(mActivity::onCameraStarted);
     }
 
     @Override
     public void onCameraStopped() {
-        mActivity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mActivity.onCameraStopped();
-            }
-        });
+        mActivity.runOnUiThread(mActivity::onCameraStopped);
     }
 
     @Override
     public void onProcessingCount(final int count) {
-        mActivity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mActivity.onProcessingCount(count);
-            }
-        });
+        mActivity.runOnUiThread(() -> mActivity.onProcessingCount(count));
     }
 
     @Override
     public void onFocused() {
-        mActivity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mActivity.onFocused();
-            }
-        });
+        mActivity.runOnUiThread(mActivity::onFocused);
     }
 
     @Override
     public void onTaken(final String[] paths) {
-        mActivity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mActivity.onTaken(paths);
-            }
-        });
+        mActivity.runOnUiThread(() -> mActivity.onTaken(paths));
     }
 }

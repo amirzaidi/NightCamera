@@ -1,11 +1,8 @@
 package amirz.nightcamera;
 
-import android.Manifest;
-import android.content.pm.PackageManager;
 import android.hardware.camera2.CameraAccessException;
 import android.media.MediaScannerConnection;
 import android.os.Bundle;
-import android.renderscript.RenderScript;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
@@ -15,6 +12,7 @@ import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AccelerateDecelerateInterpolator;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import amirz.nightcamera.device.DevicePreset;
@@ -26,8 +24,12 @@ import amirz.nightcamera.server.CameraStreamCallbacks;
 import amirz.nightcamera.ui.MainThreadDelegate;
 import amirz.nightcamera.ui.PathFinder;
 
-public class FullscreenActivity extends AppCompatActivity implements CameraStreamCallbacks {
+import static android.Manifest.permission.CAMERA;
+import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
+import static android.content.pm.PackageManager.PERMISSION_GRANTED;
+import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 
+public class FullscreenActivity extends AppCompatActivity implements CameraStreamCallbacks {
     private static final int REQUEST_PERMISSIONS = 200;
 
     private MainThreadDelegate mCallbackDelegate;
@@ -42,6 +44,9 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
     public FloatingActionButton mSwitcher;
     public FloatingActionButton mShutter;
     public FloatingActionButton mVideo;
+
+    private TextureView mTextureView;
+    private int mWidth, mHeight;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,22 +63,22 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
         if (hasPermissions()) {
             onCreateImpl();
         } else {
-            ActivityCompat.requestPermissions(FullscreenActivity.this, new String[]{
-                    Manifest.permission.CAMERA,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ActivityCompat.requestPermissions(FullscreenActivity.this, new String[] {
+                    CAMERA,
+                    WRITE_EXTERNAL_STORAGE
             }, REQUEST_PERMISSIONS);
         }
     }
 
     private boolean hasPermissions() {
-        return ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        return ActivityCompat.checkSelfPermission(this, CAMERA) == PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this, WRITE_EXTERNAL_STORAGE) == PERMISSION_GRANTED;
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == REQUEST_PERMISSIONS) {
-            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            if (grantResults[0] == PERMISSION_GRANTED && grantResults[1] == PERMISSION_GRANTED) {
                 onCreateImpl();
             } else {
                 finish();
@@ -98,37 +103,37 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
 
         setUIEnabled(false);
 
-        mSwitcher.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (mStream != null) {
-                    mServer.requestClose(mStream);
-                }
-
-                useCamera ^= 1;
-                mStream = mServer.requestOpen(mServer.getStreamFormats().get(useCamera), mCallbackDelegate);
+        mSwitcher.setOnClickListener(view -> {
+            if (mStream != null) {
+                mServer.requestClose(mStream);
             }
+
+            useCamera ^= 1;
+            requestOpenCamera();
         });
 
-        mShutter.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                setUIEnabled(false);
-                mStream.takeAndProcessAsync();
-            }
+        mShutter.setOnClickListener(view -> {
+            setUIEnabled(false);
+            mStream.takeAndProcessAsync();
         });
 
-        mVideo.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                /*start
-                mVideo*/
-            }
+        mVideo.setOnClickListener(view -> {
+            /*start
+            mVideo*/
         });
     }
 
-    public void onSurfaceReady() {
-        mStream = mServer.requestOpen(mServer.getStreamFormats().get(useCamera), mCallbackDelegate);
+    public void onSurfaceReady(int width, int height) {
+        mWidth = width;
+        mHeight = height;
+        requestOpenCamera();
+    }
+
+    private void requestOpenCamera() {
+        CameraServer.CameraStreamFormat format = mServer.getStreamFormats().get(useCamera);
+        float scale = (float) format.size.getWidth() / format.size.getHeight(); // Inverted
+        mTextureView.setLayoutParams(new LinearLayout.LayoutParams(mWidth, (int)(mWidth * scale)));
+        mStream = mServer.requestOpen(format, mCallbackDelegate);
     }
 
     @Override
@@ -157,34 +162,26 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
     }
 
     public void setUIEnabled(final boolean enabled) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mShutter.setEnabled(enabled);
-                float toScale = enabled ? 1 : 0.25f;
-                mShutter.animate().scaleX(toScale).scaleY(toScale).setDuration(200).setInterpolator(new AccelerateDecelerateInterpolator()).start();
-                mVideo.setEnabled(enabled);
-                mSwitcher.setEnabled(enabled);
-            }
+        runOnUiThread(() -> {
+            mShutter.setEnabled(enabled);
+            float toScale = enabled ? 1 : 0.25f;
+            mShutter.animate().scaleX(toScale).scaleY(toScale).setDuration(200).setInterpolator(new AccelerateDecelerateInterpolator()).start();
+            mVideo.setEnabled(enabled);
+            mSwitcher.setEnabled(enabled);
         });
     }
-
-    private TextureView tv;
-    private boolean mPaused = true;
 
     @Override
     protected void onResume() {
         super.onResume();
         if (hasPermissions()) {
-            if (mPaused) {
-                mMotionTracker.start();
+            mMotionTracker.start();
 
-                tv = new TextureView(this);
-                addContentView(tv, new ViewGroup.LayoutParams(1080, 1440));
+            mTextureView = new TextureView(this);
+            mPathFinder = new PathFinder(mTextureView, this);
 
-                mPathFinder = new PathFinder(tv, this);
-            }
-            mPaused = false;
+            LinearLayout l = findViewById(R.id.fullscreen_content);
+            l.addView(mTextureView, 1, new LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT));
         }
     }
 
@@ -192,23 +189,19 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
     protected void onPause() {
         super.onPause();
         if (hasPermissions()) {
-            mPaused = true;
             mServer.requestClose(mStream);
             mMotionTracker.stop();
 
-            ((ViewGroup) tv.getParent()).removeView(tv);
+            ((ViewGroup) mTextureView.getParent()).removeView(mTextureView);
         }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-
         if (mServer != null) {
             mServer.requestShutdown();
         }
-
-        RenderScript.releaseAllContexts();
     }
 
     @Override
@@ -239,7 +232,6 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
 
     @Override
     public void onFocused() {
-
     }
 
     @Override

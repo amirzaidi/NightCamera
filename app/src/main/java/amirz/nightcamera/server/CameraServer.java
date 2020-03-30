@@ -9,23 +9,22 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
-import android.util.Range;
 import android.util.Size;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
-
-import amirz.nightcamera.device.DevicePreset;
+import java.util.Set;
 
 public class CameraServer {
     public final static String TAG = "CameraServer";
 
-    private final Context mContext;
     private final CameraManager mManager;
+    private final Set<CameraStream> mStreams = new HashSet<>();
 
-    //Give camera handling a thread to prevent UI stutters
+    // Give camera handling a thread to prevent UI stutters
     private final HandlerThread mThread = new HandlerThread(TAG);
     private final Handler mHandler;
 
@@ -60,10 +59,9 @@ public class CameraServer {
     /**
      * Constructor loads all metadata from the camera manager.
      * @param context Context
-     * @throws CameraAccessException
+     * @throws CameraAccessException if there is a problem with the camera manager.
      */
     public CameraServer(Context context) throws CameraAccessException {
-        mContext = context;
         mManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
         mThread.start();
         mHandler = new Handler(mThread.getLooper());
@@ -73,6 +71,7 @@ public class CameraServer {
         }
 
         for (String id : mManager.getCameraIdList()) {
+            Log.d(TAG, "Camera ID: " + id);
             CameraCharacteristics characteristics = mManager.getCameraCharacteristics(id);
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
             if (map != null) {
@@ -107,6 +106,7 @@ public class CameraServer {
         CameraStream stream = new CameraStream(streamFormat, cb);
         try {
             mManager.openCamera(streamFormat.id, stream, mHandler);
+            mStreams.add(stream);
         } catch (CameraAccessException | SecurityException e) {
             stream = null;
         }
@@ -114,10 +114,14 @@ public class CameraServer {
     }
 
     public void requestClose(CameraStream stream) {
-        stream.closeStream();
+        stream.close();
+        mStreams.remove(stream);
     }
 
     public void requestShutdown() {
-
+        for (CameraStream stream : mStreams) {
+            stream.close();
+        }
+        mStreams.clear();
     }
 }
