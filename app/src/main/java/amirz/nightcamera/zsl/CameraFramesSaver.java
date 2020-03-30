@@ -14,8 +14,8 @@ import java.util.LinkedList;
 import amirz.nightcamera.data.ImageData;
 import amirz.nightcamera.motion.MotionSnapshot;
 
-public abstract class CameraFramesSaver extends CameraCaptureSession.CaptureCallback implements ImageReader.OnImageAvailableListener {
-
+public abstract class CameraFramesSaver extends CameraCaptureSession.CaptureCallback
+        implements ImageReader.OnImageAvailableListener {
     private int mImageReprocessCount;
     private int mTempResultsBufferCount;
 
@@ -28,7 +28,9 @@ public abstract class CameraFramesSaver extends CameraCaptureSession.CaptureCall
     }
 
     @Override
-    public synchronized void onCaptureStarted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, long timestamp, long frameNumber) {
+    public synchronized void onCaptureStarted(@NonNull CameraCaptureSession session,
+                                              @NonNull CaptureRequest request,
+                                              long timestamp, long frameNumber) {
         for (ImageData temp : tempResults) {
             if (temp.timestamp == timestamp) {
                 temp.motion = motionSnapshot(request);
@@ -47,11 +49,15 @@ public abstract class CameraFramesSaver extends CameraCaptureSession.CaptureCall
     }
 
     @Override
-    public void onCaptureProgressed(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull CaptureResult partialResult) {
+    public void onCaptureProgressed(@NonNull CameraCaptureSession session,
+                                    @NonNull CaptureRequest request,
+                                    @NonNull CaptureResult partialResult) {
     }
 
     @Override
-    public synchronized void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
+    public synchronized void onCaptureCompleted(@NonNull CameraCaptureSession session,
+                                                @NonNull CaptureRequest request,
+                                                @NonNull TotalCaptureResult result) {
         long stamp = result.get(CaptureResult.SENSOR_TIMESTAMP);
         for (ImageData temp : tempResults) {
             if (temp.timestamp == stamp) {
@@ -66,7 +72,9 @@ public abstract class CameraFramesSaver extends CameraCaptureSession.CaptureCall
     }
 
     @Override
-    public void onCaptureFailed(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull CaptureFailure failure) {
+    public void onCaptureFailed(@NonNull CameraCaptureSession session,
+                                @NonNull CaptureRequest request,
+                                @NonNull CaptureFailure failure) {
     }
 
     @Override

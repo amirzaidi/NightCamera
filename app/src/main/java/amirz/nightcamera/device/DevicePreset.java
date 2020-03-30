@@ -63,6 +63,7 @@ public abstract class DevicePreset {
         }
         builder.addTarget(previewSurface);
         builder.addTarget(zslSurface);
+
         //builder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_USE_SCENE_MODE);
         //builder.set(CaptureRequest.CONTROL_SCENE_MODE, CaptureRequest.CONTROL_SCENE_MODE_NIGHT);
 
@@ -71,8 +72,12 @@ public abstract class DevicePreset {
 
         builder.set(CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE, CaptureRequest.LENS_OPTICAL_STABILIZATION_MODE_ON);
         builder.set(CaptureRequest.STATISTICS_LENS_SHADING_MAP_MODE, CaptureRequest.STATISTICS_LENS_SHADING_MAP_MODE_ON);
-        //builder.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO);
-        //builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
+        builder.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO);
+        builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
+
+        builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, -1);
+        //builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 6);
+
         /*
         builder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF);
         builder.set(CaptureRequest.SENSOR_FRAME_DURATION, 100 * 1000000L);
@@ -84,7 +89,6 @@ public abstract class DevicePreset {
         builder.set(CaptureRequest.CONTROL_CAPTURE_INTENT, CaptureRequest.CONTROL_CAPTURE_INTENT_MANUAL);
         */
 
-        //builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 6);
         return builder.build();
     }
 
