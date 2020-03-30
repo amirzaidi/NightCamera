@@ -15,9 +15,10 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import amirz.dngprocessor.gl.ShaderLoader;
 import amirz.nightcamera.device.DevicePreset;
-import amirz.nightcamera.gl.Shaders;
 import amirz.nightcamera.motion.MotionTracker;
+import amirz.nightcamera.processor.PostProcessorRAW;
 import amirz.nightcamera.server.CameraServer;
 import amirz.nightcamera.server.CameraStream;
 import amirz.nightcamera.server.CameraStreamCallbacks;
@@ -52,7 +53,7 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_fullscreen);
 
-        Shaders.load(this);
+        PostProcessorRAW.setShaderLoader(new ShaderLoader(getResources()));
 
         if (DevicePreset.getInstance() == null) {
             Toast.makeText(this, "Device not supported", Toast.LENGTH_SHORT).show();

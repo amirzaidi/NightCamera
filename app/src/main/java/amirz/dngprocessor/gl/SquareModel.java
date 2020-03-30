@@ -1,14 +1,19 @@
-package amirz.nightcamera.gl.generic;
+package amirz.dngprocessor.gl;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 
-import static android.opengl.GLES20.*;
+import static android.opengl.GLES20.GL_FLOAT;
+import static android.opengl.GLES20.GL_TRIANGLE_STRIP;
+import static android.opengl.GLES20.glDisableVertexAttribArray;
+import static android.opengl.GLES20.glDrawArrays;
+import static android.opengl.GLES20.glEnableVertexAttribArray;
+import static android.opengl.GLES20.glVertexAttribPointer;
 
-public class GLSquare {
+class SquareModel {
     private static final int COORDS_PER_VERTEX = 3;
-    private static final float COORDS[] = {
+    private static final float[] COORDS = {
             -1, 1, 0,
             -1, -1, 0,
             1, 1, 0,
@@ -18,7 +23,7 @@ public class GLSquare {
 
     private final FloatBuffer mVertexBuffer;
 
-    public GLSquare() {
+    SquareModel() {
         // (# of coordinate values * 4 bytes per float)
         ByteBuffer bb = ByteBuffer.allocateDirect(COORDS.length * 4);
 
@@ -28,7 +33,7 @@ public class GLSquare {
         mVertexBuffer.position(0);
     }
 
-    public void draw(int posHandle) {
+    void draw(int posHandle) {
         glEnableVertexAttribArray(posHandle);
         glVertexAttribPointer(
                 posHandle, COORDS_PER_VERTEX,

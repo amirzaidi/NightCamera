@@ -1,30 +1,67 @@
-package amirz.nightcamera.gl.generic;
+package amirz.dngprocessor.gl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import amirz.dngprocessor.math.BlockDivider;
+import amirz.nightcamera.R;
+
+import static amirz.dngprocessor.util.Constants.BLOCK_HEIGHT;
 import static android.opengl.GLES20.*;
 import static android.opengl.GLES30.*;
 
-public class GLProgramBase {
+public class GLPrograms implements AutoCloseable {
+    public final int vertexShader;
+
+    private final ShaderLoader mShaderLoader;
+    private final SquareModel mSquare = new SquareModel();
     private final List<Integer> mPrograms = new ArrayList<>();
     private int mProgramActive;
 
-    protected void useProgram(int program) {
+    public GLPrograms(ShaderLoader shaderLoader) {
+        mShaderLoader = shaderLoader;
+        vertexShader = loadShader(GL_VERTEX_SHADER, shaderLoader.readRaw(R.raw.passthrough_vs));
+    }
+
+    public void useProgram(int fragmentRes) {
+        int program = createProgram(vertexShader, mShaderLoader.readRaw(fragmentRes));
+
         glLinkProgram(program);
         glUseProgram(program);
         mProgramActive = program;
     }
 
-    protected int createProgram(int vertex, String fragment) {
+    public int createProgram(int vertex, String fragmentId) {
+        int fragment;
+        try {
+            fragment = loadShader(GL_FRAGMENT_SHADER, fragmentId);
+        } catch (RuntimeException e) {
+            throw new RuntimeException("Error initializing fragment shader:\n" + fragmentId, e);
+        }
+
         int program = glCreateProgram();
         glAttachShader(program, vertex);
-        glAttachShader(program, loadShader(GL_FRAGMENT_SHADER, fragment));
+        glAttachShader(program, fragment);
         mPrograms.add(program);
         return program;
     }
 
+    public void draw() {
+        mSquare.draw(vPosition());
+        glFlush();
+    }
+
+    public void drawBlocks(int w, int h) {
+        BlockDivider divider = new BlockDivider(h, BLOCK_HEIGHT);
+        int[] row = new int[2];
+        while (divider.nextBlock(row)) {
+            glViewport(0, row[0], w, row[1]);
+            draw();
+        }
+    }
+
+    @Override
     public void close() {
         // Clean everything up
         for (int program : mPrograms) {
@@ -36,10 +73,17 @@ public class GLProgramBase {
         int shader = glCreateShader(type);
         glShaderSource(shader, shaderCode);
         glCompileShader(shader);
+
+        int[] status = new int[1];
+        glGetShaderiv(shader, GL_COMPILE_STATUS, status, 0);
+        if (status[0] == GL_FALSE) {
+            throw new RuntimeException("Shader compile error: " + glGetShaderInfoLog(shader));
+        }
+
         return shader;
     }
 
-    protected int vPosition() {
+    private int vPosition() {
         return glGetAttribLocation(mProgramActive, "vPosition");
     }
 

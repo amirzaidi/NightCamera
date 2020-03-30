@@ -114,8 +114,10 @@ public class CameraServer {
     }
 
     public void requestClose(CameraStream stream) {
-        stream.close();
-        mStreams.remove(stream);
+        if (stream != null) {
+            stream.close();
+            mStreams.remove(stream);
+        }
     }
 
     public void requestShutdown() {

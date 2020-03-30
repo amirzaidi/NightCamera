@@ -1,19 +1,29 @@
-package amirz.nightcamera.gl.generic;
+package amirz.dngprocessor.gl;
 
 import android.opengl.EGLConfig;
 import android.opengl.EGLContext;
 import android.opengl.EGLDisplay;
 import android.opengl.EGLSurface;
 
-import static android.opengl.EGL14.*;
+import java.nio.ByteBuffer;
 
-public abstract class GLCoreBase implements AutoCloseable {
+import static android.opengl.EGL14.*;
+import static android.opengl.GLES20.GL_UNSIGNED_SHORT;
+import static android.opengl.GLES20.glReadPixels;
+import static android.opengl.GLES30.GL_RED_INTEGER;
+
+public class GLCore implements AutoCloseable {
+    public final int width, height;
+
     private final EGLDisplay mDisplay;
     private final EGLContext mContext;
     private final EGLSurface mSurface;
-    private final GLProgramBase mProgram;
+    private final GLPrograms mProgram;
 
-    public GLCoreBase(int surfaceWidth, int surfaceHeight) {
+    public GLCore(int surfaceWidth, int surfaceHeight, ShaderLoader loader) {
+        width = surfaceWidth;
+        height = surfaceHeight;
+
         int[] major = new int[2];
         int[] minor = new int[2];
 
@@ -21,7 +31,7 @@ public abstract class GLCoreBase implements AutoCloseable {
         mDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
         eglInitialize(mDisplay, major, 0, minor, 0);
 
-        int[] attribList2 = new int[] {
+        int[] attribList2 = {
                 EGL_DEPTH_SIZE, 0,
                 EGL_STENCIL_SIZE, 0,
                 EGL_RED_SIZE, 8,
@@ -60,18 +70,22 @@ public abstract class GLCoreBase implements AutoCloseable {
         }, 0);
 
         mSurface = eglCreatePbufferSurface(mDisplay, configs[0], new int[] {
-                EGL_WIDTH, surfaceWidth,
-                EGL_HEIGHT, surfaceHeight,
+                EGL_WIDTH, width,
+                EGL_HEIGHT, height,
                 EGL_NONE
         }, 0);
 
         eglMakeCurrent(mDisplay, mSurface, mSurface, mContext);
-        mProgram = createProgram();
+        mProgram = new GLPrograms(loader);
     }
 
-    protected abstract GLProgramBase createProgram();
+    public ByteBuffer resultBuffer() {
+        ByteBuffer out = ByteBuffer.allocate(width * height * 2);
+        glReadPixels(0, 0, width, height, GL_RED_INTEGER, GL_UNSIGNED_SHORT, out);
+        return (ByteBuffer) out.flip();
+    }
 
-    public GLProgramBase getProgram() {
+    public GLPrograms getProgram() {
         return mProgram;
     }
 

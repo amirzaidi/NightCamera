@@ -8,7 +8,9 @@ import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.os.Build;
+import android.support.media.ExifInterface;
 import android.util.Range;
+import android.util.SparseIntArray;
 import android.view.Surface;
 
 import amirz.nightcamera.server.CameraServer;
@@ -25,17 +27,28 @@ public abstract class DevicePreset {
 
     private static DevicePreset getNewInstance() {
         switch (Build.MODEL) {
-            case "ONEPLUS A3000":
-            case "ONEPLUS A3003":
-            case "ONEPLUS A5000":
-            case "ONEPLUS A5003":
-                return new OnePlus3();
             default:
                 return new Generic();
         }
     }
 
     private static class Generic extends DevicePreset {
+        private static SparseIntArray ORIENTATIONS_0 = new SparseIntArray();
+        static { // Regular camera.
+            ORIENTATIONS_0.append(0, ExifInterface.ORIENTATION_ROTATE_90);
+            ORIENTATIONS_0.append(90, ExifInterface.ORIENTATION_NORMAL);
+            ORIENTATIONS_0.append(180, ExifInterface.ORIENTATION_ROTATE_270);
+            ORIENTATIONS_0.append(270, ExifInterface.ORIENTATION_ROTATE_180);
+        }
+
+        private static SparseIntArray ORIENTATIONS_1 = new SparseIntArray();
+        static { // Selfie camera.
+            ORIENTATIONS_1.append(0, ExifInterface.ORIENTATION_ROTATE_270);
+            ORIENTATIONS_1.append(90, ExifInterface.ORIENTATION_NORMAL);
+            ORIENTATIONS_1.append(180, ExifInterface.ORIENTATION_ROTATE_90);
+            ORIENTATIONS_1.append(270, ExifInterface.ORIENTATION_ROTATE_180);
+        }
+
         @Override
         protected void setRawParams(String id, CaptureRequest.Builder builder, TotalCaptureResult result) {
         }
@@ -50,6 +63,12 @@ public abstract class DevicePreset {
 
         @Override
         public int getExifRotation(String id, int rot) {
+            switch (id) {
+                case "0":
+                    return ORIENTATIONS_0.get(rot);
+                case "1":
+                    return ORIENTATIONS_1.get(rot);
+            }
             return 0;
         }
     }
@@ -58,6 +77,10 @@ public abstract class DevicePreset {
 
     public void setBright(boolean isBright) {
         mBright = isBright;
+    }
+
+    public boolean isBright() {
+        return mBright;
     }
 
     public final CaptureRequest getParams(CameraServer.CameraStreamFormat stream,
@@ -89,9 +112,9 @@ public abstract class DevicePreset {
             Range<Integer> isoRange = stream.characteristics.get(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE);
             Range<Integer> boostRange = stream.characteristics.get(CameraCharacteristics.CONTROL_POST_RAW_SENSITIVITY_BOOST_RANGE);
 
-            // 1/2s exposure time, at maximum ISO.
-            builder.set(CaptureRequest.SENSOR_FRAME_DURATION, 500 * 1000000L);
-            builder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, 500 * 1000000L);
+            // 0.3s exposure time, at maximum ISO.
+            builder.set(CaptureRequest.SENSOR_FRAME_DURATION, 300 * 1000000L);
+            builder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, 300 * 1000000L);
             builder.set(CaptureRequest.SENSOR_SENSITIVITY, isoRange.getUpper());
             builder.set(CaptureRequest.CONTROL_POST_RAW_SENSITIVITY_BOOST, boostRange.getLower());
 
