@@ -41,7 +41,9 @@ public class CameraStream extends CameraDevice.StateCallback implements AutoClos
 
     private CameraDevice mCamera;
     private CameraCaptureSession mSession;
-    private boolean mPreviewActive;
+    private boolean mCameraStreamStarted;
+
+    private CaptureRequest mCurrentRequest;
 
     public CameraStream(CameraServer.CameraStreamFormat streamFormat, CameraStreamCallbacks cb) {
         mDevice = DevicePreset.getInstance();
@@ -62,7 +64,7 @@ public class CameraStream extends CameraDevice.StateCallback implements AutoClos
         mHandler = new Handler(mThread.getLooper());
 
         mProcessThread = new HandlerThread(TAG);
-        //mProcessThread.setPriority(Thread.MIN_PRIORITY);
+        mProcessThread.setPriority(Thread.MIN_PRIORITY);
         mProcessThread.start();
         mProcessHandler = new Handler(mProcessThread.getLooper());
     }
@@ -70,7 +72,6 @@ public class CameraStream extends CameraDevice.StateCallback implements AutoClos
     @Override
     public void onOpened(@NonNull CameraDevice camera) {
         mCamera = camera;
-
         mStreamCallbacks.onCameraStartAvailable();
     }
 
@@ -81,11 +82,12 @@ public class CameraStream extends CameraDevice.StateCallback implements AutoClos
 
         Surface previewSurface = mStreamCallbacks.getPreviewSurface();
         Surface zslSurface = mZSLQueue.getReadSurface();
-        mCamera.createCaptureSession(Arrays.asList(previewSurface, zslSurface), new CameraCaptureSession.StateCallback() {
+        mCamera.createCaptureSession(Arrays.asList(previewSurface, zslSurface),
+                new CameraCaptureSession.StateCallback() {
             @Override
             public void onConfigured(@NonNull CameraCaptureSession session) {
                 mSession = session;
-                mPreviewActive = true;
+                mCameraStreamStarted = true;
                 refreshPreviewRequest();
                 mStreamCallbacks.onCameraStarted();
             }
@@ -98,19 +100,26 @@ public class CameraStream extends CameraDevice.StateCallback implements AutoClos
     }
 
     private void refreshPreviewRequest() {
-        if (mSession != null && mPreviewActive) {
-            try {
-                mSession.stopRepeating();
-                Surface previewSurface = mStreamCallbacks.getPreviewSurface();
-                Surface zslSurface = mZSLQueue.getReadSurface();
-                final CaptureRequest request = mDevice.getParams(mStreamFormat, mCamera, mZSLQueue.getLastResult(), previewSurface, zslSurface);
-                mSession.setRepeatingRequest(request, mZSLQueue, mZSLQueue.mHandler);
+        if (!mCameraStreamStarted) {
+            return;
+        }
 
-                mHandler.postDelayed(() -> {
-                    //refreshPreviewRequest();
-                }, 1000); //Reset preview request every second
-            } catch (CameraAccessException ignored) {
+        try {
+            Surface previewSurface = mStreamCallbacks.getPreviewSurface();
+            Surface zslSurface = mZSLQueue.getReadSurface();
+            final CaptureRequest request = mDevice.getParams(mStreamFormat, mCamera,
+                    mZSLQueue.getLastResult(), previewSurface, zslSurface);
+
+            if (!request.equals(mCurrentRequest)) {
+                // Always stop before requesting a new stream.
+                mSession.stopRepeating();
+                mSession.setRepeatingRequest(request, mZSLQueue, mZSLQueue.mHandler);
+                mCurrentRequest = request;
             }
+
+            // Check for new request templates four times per second.
+            mHandler.postDelayed(this::refreshPreviewRequest, 250);
+        } catch (CameraAccessException ignored) {
         }
     }
 
@@ -143,8 +152,8 @@ public class CameraStream extends CameraDevice.StateCallback implements AutoClos
 
     @Override
     public void close() {
-        if (mPreviewActive) {
-            mPreviewActive = false;
+        if (mCameraStreamStarted) {
+            mCameraStreamStarted = false;
             mStreamCallbacks.onCameraStopped();
         }
 

@@ -92,6 +92,7 @@ public class PathFinder {
 
                         activity.mSwitcher.startAnimation(rotateAnimation);
                         activity.mVideo.startAnimation(rotateAnimation);
+                        activity.mExposure.startAnimation(rotateAnimation);
                         UiRotate = newRot;
                     }
                 }

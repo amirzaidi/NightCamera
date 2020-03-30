@@ -41,9 +41,8 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
 
     private PathFinder mPathFinder;
 
-    public FloatingActionButton mSwitcher;
-    public FloatingActionButton mShutter;
-    public FloatingActionButton mVideo;
+    public FloatingActionButton mSwitcher, mShutter, mVideo, mExposure;
+    private boolean mExposureBright;
 
     private TextureView mTextureView;
     private int mWidth, mHeight;
@@ -100,6 +99,7 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
         mSwitcher = findViewById(R.id.switcher);
         mShutter = findViewById(R.id.shutter);
         mVideo = findViewById(R.id.video);
+        mExposure = findViewById(R.id.exposure);
 
         setUIEnabled(false);
 
@@ -120,6 +120,15 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
         mVideo.setOnClickListener(view -> {
             /*start
             mVideo*/
+        });
+
+        DevicePreset.getInstance().setBright(mExposureBright);
+        mExposure.setOnClickListener(view -> {
+            mExposureBright = !mExposureBright;
+            mExposure.setImageDrawable(mExposureBright
+                    ? getDrawable(R.drawable.brightness_bright)
+                    : getDrawable(R.drawable.brightness_auto));
+            DevicePreset.getInstance().setBright(mExposureBright);
         });
     }
 
@@ -168,6 +177,7 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
             mShutter.animate().scaleX(toScale).scaleY(toScale).setDuration(200).setInterpolator(new AccelerateDecelerateInterpolator()).start();
             mVideo.setEnabled(enabled);
             mSwitcher.setEnabled(enabled);
+            mExposure.setEnabled(enabled);
         });
     }
 
