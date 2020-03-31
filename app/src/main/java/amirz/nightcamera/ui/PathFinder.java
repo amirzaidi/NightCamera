@@ -10,16 +10,21 @@ import android.widget.LinearLayout;
 
 import amirz.nightcamera.FullscreenActivity;
 
-public class PathFinder {
+public class PathFinder implements TextureView.SurfaceTextureListener {
+    public Surface previewSurface;
+
+    private final FullscreenActivity mActivity;
     private float UiRotate = 0;
+    private RotateAnimation rotateAnimation;
 
     //private GestureDetector gestureDetector;
     //private View.OnTouchListener touchListener;
 
-    public Surface previewSurface;
 
     @SuppressLint("ClickableViewAccessibility")
     public PathFinder(TextureView tv, final FullscreenActivity activity) {
+        mActivity = activity;
+        tv.setSurfaceTextureListener(this);
         /*
         gestureDetector = new GestureDetector(activity, new GestureDetector.SimpleOnGestureListener() {
             private static final int SWIPE_THRESHOLD = 100;
@@ -58,45 +63,44 @@ public class PathFinder {
         tv.setOnTouchListener((view1, motionEvent) -> gestureDetector.onTouchEvent(motionEvent));
         */
 
-        tv.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
-            private RotateAnimation rotateAnimation;
+    }
 
-            @Override
-            public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-                previewSurface = new Surface(surface);
-                activity.onSurfaceReady(width, height);
+    @Override
+    public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
+        previewSurface = new Surface(surface);
+        mActivity.onSurfaceReady();
+    }
+
+    @Override
+    public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+        // Invert buffer for camera on some devices.
+        // surface.setDefaultBufferSize(height, width);
+    }
+
+    @Override
+    public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+        return true;
+    }
+
+    @Override
+    public void onSurfaceTextureUpdated(SurfaceTexture surface) {
+        // Update every frame -> Sync regular updates here
+        if (rotateAnimation != null && rotateAnimation.hasEnded()) {
+            rotateAnimation = null;
+        }
+
+        if (rotateAnimation == null) {
+            float newRot = mActivity.mMotionTracker.getRotation();
+            if (UiRotate != newRot) {
+                rotateAnimation = new RotateAnimation(UiRotate, newRot, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
+                rotateAnimation.setFillAfter(true);
+                rotateAnimation.setDuration(2 * (long) Math.abs(newRot - UiRotate));
+
+                mActivity.mSwitcher.startAnimation(rotateAnimation);
+                mActivity.mVideo.startAnimation(rotateAnimation);
+                mActivity.mExposure.startAnimation(rotateAnimation);
+                UiRotate = newRot;
             }
-
-            @Override
-            public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-            }
-
-            @Override
-            public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-                return true;
-            }
-
-            @Override
-            public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-                // Update every frame -> Sync regular updates here
-                if (rotateAnimation != null && rotateAnimation.hasEnded()) {
-                    rotateAnimation = null;
-                }
-
-                if (rotateAnimation == null) {
-                    float newRot = activity.mMotionTracker.getRotation();
-                    if (UiRotate != newRot) {
-                        rotateAnimation = new RotateAnimation(UiRotate, newRot, Animation.RELATIVE_TO_SELF, 0.5f, Animation.RELATIVE_TO_SELF, 0.5f);
-                        rotateAnimation.setFillAfter(true);
-                        rotateAnimation.setDuration(2 * (long) Math.abs(newRot - UiRotate));
-
-                        activity.mSwitcher.startAnimation(rotateAnimation);
-                        activity.mVideo.startAnimation(rotateAnimation);
-                        activity.mExposure.startAnimation(rotateAnimation);
-                        UiRotate = newRot;
-                    }
-                }
-            }
-        });
+        }
     }
 }

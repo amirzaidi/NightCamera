@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="shutter_margin">32dp</dimen>
-    <dimen name="shutter_size">96dp</dimen>
+    <dimen name="shutter_size">88dp</dimen>
     <dimen name="shutter_stroke">2dp</dimen>
-    <dimen name="shutter_icon">88dp</dimen>
+    <dimen name="shutter_icon">82dp</dimen>
     <dimen name="semishutter_size">64dp</dimen>
     <dimen name="semishutter_icon">32dp</dimen>
 </resources>

@@ -1,11 +1,10 @@
 package amirz.nightcamera;
 
+import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.os.Bundle;
 import android.view.Surface;
-import android.view.TextureView;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.LinearLayout;
 import android.widget.Toast;
@@ -28,6 +27,7 @@ import amirz.nightcamera.server.CameraStreamCallbacks;
 import amirz.nightcamera.storage.ImageSaver;
 import amirz.nightcamera.ui.MainThreadDelegate;
 import amirz.nightcamera.ui.PathFinder;
+import amirz.nightcamera.ui.AutoFitTextureView;
 
 import static android.Manifest.permission.CAMERA;
 import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
@@ -48,8 +48,7 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
     public FloatingActionButton mSwitcher, mShutter, mVideo, mExposure;
     private boolean mExposureBright;
 
-    private TextureView mTextureView;
-    private int mWidth, mHeight;
+    private AutoFitTextureView mTextureView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -136,16 +135,15 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
         });
     }
 
-    public void onSurfaceReady(int width, int height) {
-        mWidth = width;
-        mHeight = height;
+    public void onSurfaceReady() {
         requestOpenCamera();
     }
 
     private void requestOpenCamera() {
         CameraServer.CameraStreamFormat format = mServer.getStreamFormats().get(useCamera);
-        float scale = (float) format.size.getWidth() / format.size.getHeight(); // Inverted
-        mTextureView.setLayoutParams(new LinearLayout.LayoutParams(mWidth, (int)(mWidth * scale)));
+        int formatWidth = format.size.getHeight();
+        int formatHeight = format.size.getWidth();
+        mTextureView.setAspectRatio(formatWidth, formatHeight);
         mStream = mServer.requestOpen(format, mCallbackDelegate);
     }
 
@@ -191,11 +189,11 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
         if (hasPermissions()) {
             mMotionTracker.start();
 
-            mTextureView = new TextureView(this);
+            mTextureView = new AutoFitTextureView(this);
             mPathFinder = new PathFinder(mTextureView, this);
 
             LinearLayout l = findViewById(R.id.fullscreen_content);
-            l.addView(mTextureView, 1, new LinearLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT));
+            l.addView(mTextureView, 1, new LinearLayout.LayoutParams(MATCH_PARENT,  MATCH_PARENT));
         }
     }
 
@@ -206,7 +204,8 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
             mServer.requestClose(mStream);
             mMotionTracker.stop();
 
-            ((ViewGroup) mTextureView.getParent()).removeView(mTextureView);
+            LinearLayout l = findViewById(R.id.fullscreen_content);
+            l.removeView(mTextureView);
         }
     }
 
