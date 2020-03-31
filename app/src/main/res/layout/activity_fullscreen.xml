@@ -14,17 +14,18 @@
         android:gravity="center"
         android:orientation="horizontal">
 
-        <android.support.design.widget.FloatingActionButton
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/exposure"
-            android:layout_width="@dimen/semishutter_size"
-            android:layout_height="@dimen/semishutter_size"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:clickable="true"
             android:focusable="true"
             android:theme="@style/Theme.AppCompat.NoActionBar"
             app:backgroundTint="@color/colorFabs"
             app:borderWidth="0dp"
-            app:fabSize="normal"
-            app:srcCompat="@drawable/brightness_auto" />
+            app:fabCustomSize="@dimen/semishutter_size"
+            app:srcCompat="@drawable/brightness_auto"
+            app:maxImageSize="@dimen/semishutter_icon" />
 
     </LinearLayout>
 
@@ -35,22 +36,23 @@
         android:gravity="center"
         android:orientation="horizontal">
 
-        <android.support.design.widget.FloatingActionButton
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/switcher"
-            android:layout_width="@dimen/semishutter_size"
-            android:layout_height="@dimen/semishutter_size"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:clickable="true"
             android:focusable="true"
             android:theme="@style/Theme.AppCompat.NoActionBar"
             app:backgroundTint="@color/colorFabs"
             app:borderWidth="0dp"
-            app:fabSize="normal"
-            app:srcCompat="@drawable/swapper_vector_rotated" />
+            app:fabCustomSize="@dimen/semishutter_size"
+            app:srcCompat="@drawable/swapper_vector_rotated"
+            app:maxImageSize="@dimen/semishutter_icon" />
 
-        <android.support.design.widget.FloatingActionButton
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/shutter"
-            android:layout_width="@dimen/shutter_size"
-            android:layout_height="@dimen/shutter_size"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_marginLeft="@dimen/shutter_margin"
             android:layout_marginRight="@dimen/shutter_margin"
             android:clickable="true"
@@ -58,20 +60,23 @@
             android:theme="@style/Theme.AppCompat.NoActionBar"
             app:backgroundTint="@color/colorFabs"
             app:borderWidth="0dp"
-            app:fabSize="mini"
-            app:srcCompat="@drawable/shutter" />
+            app:fabCustomSize="@dimen/shutter_size"
+            app:srcCompat="@drawable/shutter"
+            app:maxImageSize="@dimen/shutter_icon" />
 
-        <android.support.design.widget.FloatingActionButton
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/video"
-            android:layout_width="@dimen/semishutter_size"
-            android:layout_height="@dimen/semishutter_size"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:clickable="true"
             android:focusable="true"
             android:theme="@style/Theme.AppCompat.NoActionBar"
             app:backgroundTint="@color/colorFabs"
             app:borderWidth="0dp"
-            app:fabSize="normal"
-            app:srcCompat="@drawable/video_vector" />
+            app:fabCustomSize="@dimen/semishutter_size"
+            app:srcCompat="@drawable/video_vector"
+            app:maxImageSize="@dimen/semishutter_icon" />
+
     </LinearLayout>
 
 </LinearLayout>

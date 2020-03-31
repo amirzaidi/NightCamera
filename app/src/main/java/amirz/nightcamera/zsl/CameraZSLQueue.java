@@ -2,15 +2,13 @@ package amirz.nightcamera.zsl;
 
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CaptureRequest;
-import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.media.ImageReader;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.view.Surface;
 
-import amirz.nightcamera.data.ImageData;
 import amirz.nightcamera.motion.MotionSnapshot;
 import amirz.nightcamera.motion.MotionTracker;
 import amirz.nightcamera.server.CameraServer;

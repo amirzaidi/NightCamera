@@ -5,11 +5,11 @@ android {
     buildToolsVersion '29.0.2'
     defaultConfig {
         applicationId "amirz.nightcamera"
-        minSdkVersion 25
-        targetSdkVersion 27
+        minSdkVersion 24
+        targetSdkVersion 29
         versionCode 1
         versionName "1.0"
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
         debugOptimized {
@@ -35,12 +35,12 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    androidTestImplementation('com.android.support.test.espresso:espresso-core:2.2.2', {
+    androidTestImplementation('androidx.test.espresso:espresso-core:3.1.0', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
-    implementation 'com.android.support:appcompat-v7:27.+'
-    implementation 'com.android.support:support-v4:27.+'
+    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     testImplementation 'junit:junit:4.12'
-    implementation 'com.android.support:design:27.+'
-    implementation 'com.android.support:exifinterface:27.+'
+    implementation 'com.google.android.material:material:1.1.0'
+    implementation 'androidx.exifinterface:exifinterface:1.1.0'
 }
