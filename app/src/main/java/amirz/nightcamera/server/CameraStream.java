@@ -10,6 +10,7 @@ import android.os.HandlerThread;
 import androidx.annotation.NonNull;
 import android.view.Surface;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -129,7 +130,7 @@ public class CameraStream extends CameraDevice.StateCallback implements AutoClos
             if (images.length > 0) {
                 mStreamCallbacks.onProcessingCount(mProcessCounter.incrementAndGet());
                 mProcessHandler.post(() -> {
-                    String[] files = mProcessor.processToFiles(images);
+                    File[] files = mProcessor.processToFiles(images);
                     for (ImageData img : images) {
                         img.close();
                     }

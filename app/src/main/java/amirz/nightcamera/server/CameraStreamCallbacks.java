@@ -2,6 +2,8 @@ package amirz.nightcamera.server;
 
 import android.view.Surface;
 
+import java.io.File;
+
 import amirz.nightcamera.motion.MotionTracker;
 
 public interface CameraStreamCallbacks {
@@ -19,5 +21,5 @@ public interface CameraStreamCallbacks {
 
     void onFocused();
 
-    void onTaken(String[] paths);
+    void onTaken(File[] paths);
 }

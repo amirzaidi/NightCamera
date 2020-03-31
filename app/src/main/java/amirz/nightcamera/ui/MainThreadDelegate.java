@@ -2,6 +2,8 @@ package amirz.nightcamera.ui;
 
 import android.view.Surface;
 
+import java.io.File;
+
 import amirz.nightcamera.FullscreenActivity;
 import amirz.nightcamera.motion.MotionTracker;
 import amirz.nightcamera.server.CameraStreamCallbacks;
@@ -49,7 +51,7 @@ public class MainThreadDelegate implements CameraStreamCallbacks {
     }
 
     @Override
-    public void onTaken(final String[] paths) {
+    public void onTaken(final File[] paths) {
         mActivity.runOnUiThread(() -> mActivity.onTaken(paths));
     }
 }

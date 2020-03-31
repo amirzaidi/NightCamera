@@ -11,6 +11,7 @@ import android.os.HandlerThread;
 import android.util.Log;
 import android.util.Size;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;

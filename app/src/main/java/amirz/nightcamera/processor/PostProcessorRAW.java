@@ -3,11 +3,11 @@ package amirz.nightcamera.processor;
 import android.hardware.camera2.DngCreator;
 import android.util.Log;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -19,6 +19,9 @@ import amirz.nightcamera.server.CameraServer;
 
 public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
     private static final String TAG = "PostProcessorRAW";
+
+    private static final String TEMP_FILE_PREFIX = "NightCamera";
+    private static final String TEMP_FILE_SUFFIX = ".tmp";
 
     private static ShaderLoader sShaderLoader;
 
@@ -34,7 +37,7 @@ public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
     }
 
     @Override
-    public String[] processToFiles(ImageData[] images) {
+    public File[] processToFiles(ImageData[] images) {
         ImageData img = images[images.length - 1];
         ByteBuffer buffer = img.buffer(0);
 
@@ -56,20 +59,17 @@ public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
             buffer = mStagePipeline.execute();
         }
 
-        String file = getSavePath("dng");
-
-        DngCreator dngCreator = new DngCreator(mStreamFormat.characteristics, img.result);
-        dngCreator.setOrientation(mDevice.getExifRotation(mStreamFormat.id, img.motion.mRot));
-        try {
-            FileOutputStream output = new FileOutputStream(file);
-            dngCreator.writeByteBuffer(output, mStreamFormat.size, buffer, 0);
-            output.close();
+        try (DngCreator dngCreator = new DngCreator(mStreamFormat.characteristics, img.result)) {
+            dngCreator.setOrientation(mDevice.getExifRotation(mStreamFormat.id, img.motion.mRot));
+            File tmp = File.createTempFile(TEMP_FILE_PREFIX, TEMP_FILE_SUFFIX);
+            try (FileOutputStream output = new FileOutputStream(tmp)) {
+                dngCreator.writeByteBuffer(output, mStreamFormat.size, buffer, 0);
+            }
+            return new File[] { tmp };
         } catch (IOException e) {
             e.printStackTrace();
         }
-        dngCreator.close();
-
-        return new String[] { file };
+        return new File[0];
     }
 
     @Override
