@@ -1,15 +1,7 @@
 package amirz.nightcamera;
 
 import android.hardware.camera2.CameraAccessException;
-import android.net.Uri;
 import android.os.Bundle;
-import androidx.annotation.NonNull;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import androidx.core.app.ActivityCompat;
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.os.Environment;
-import android.util.Log;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
@@ -18,10 +10,13 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
 import java.io.File;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import amirz.dngprocessor.gl.ShaderLoader;
 import amirz.nightcamera.device.DevicePreset;
@@ -30,6 +25,7 @@ import amirz.nightcamera.processor.PostProcessorRAW;
 import amirz.nightcamera.server.CameraServer;
 import amirz.nightcamera.server.CameraStream;
 import amirz.nightcamera.server.CameraStreamCallbacks;
+import amirz.nightcamera.storage.ImageSaver;
 import amirz.nightcamera.ui.MainThreadDelegate;
 import amirz.nightcamera.ui.PathFinder;
 
@@ -54,9 +50,6 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
 
     private TextureView mTextureView;
     private int mWidth, mHeight;
-
-    private final AtomicInteger counter = new AtomicInteger(0);
-    private String mLastFilename;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -257,29 +250,6 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
 
     @Override
     public void onTaken(File[] paths) {
-        String loc = Environment.DIRECTORY_DCIM + File.pathSeparator + "NightCamera";
-        String baseFilename = "IMG_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-
-        //String[] saved = new String[];
-        for (File file : paths) {
-            String path = Uri.fromFile(file).toString();
-            String filename = baseFilename;
-            if (filename.equals(mLastFilename)) {
-                filename += "_" + counter.incrementAndGet();
-            } else {
-                mLastFilename = baseFilename;
-                counter.set(1);
-            }
-            filename += ".dng";
-
-            Log.d("FullscreenActivity", "Saved " + path + " as " + filename);
-            file.delete();
-        }
-        //MediaScannerConnection.scanFile(this, uri, null, null);
-        /*
-        String[] uri = new String[paths.length];
-        for (int i = 0; i < paths.length; i++) {
-            uri[i] = Uri.fromFile(paths[i]).toString();
-        }*/
+        ImageSaver.moveToDCIMAsync(this, paths);
     }
 }
