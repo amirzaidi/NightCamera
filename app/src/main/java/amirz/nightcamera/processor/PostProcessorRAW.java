@@ -1,7 +1,12 @@
 package amirz.nightcamera.processor;
 
+import android.graphics.ImageFormat;
+import android.graphics.Rect;
+import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.DngCreator;
+import android.media.Image;
 import android.util.Log;
+import android.util.Size;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -39,8 +44,6 @@ public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
     @Override
     public File[] processToFiles(ImageData[] images) {
         ImageData img = images[images.length - 1];
-        ByteBuffer buffer = img.buffer(0);
-
         Log.d(TAG, "Process image count: " + images.length);
         if (images.length > 1 && DevicePreset.getInstance().isBright()) {
             mDeepList.clear();
@@ -56,14 +59,16 @@ public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
                         sShaderLoader);
             }
 
-            buffer = mStagePipeline.execute();
+            // Overwrite original buffer.
+            ByteBuffer newBuffer = mStagePipeline.execute();
+            img.buffer(0).put(newBuffer);
         }
 
         try (DngCreator dngCreator = new DngCreator(mStreamFormat.characteristics, img.result)) {
             dngCreator.setOrientation(mDevice.getExifRotation(mStreamFormat.id, img.motion.mRot));
             File tmp = File.createTempFile(TEMP_FILE_PREFIX, TEMP_FILE_SUFFIX);
             try (FileOutputStream output = new FileOutputStream(tmp)) {
-                dngCreator.writeByteBuffer(output, mStreamFormat.size, buffer, 0);
+                dngCreator.writeImage(output, img.image);
             }
             return new File[] { tmp };
         } catch (IOException e) {
