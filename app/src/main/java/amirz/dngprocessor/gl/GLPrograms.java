@@ -53,7 +53,11 @@ public class GLPrograms implements AutoCloseable {
     }
 
     public void drawBlocks(int w, int h) {
-        BlockDivider divider = new BlockDivider(h, BLOCK_HEIGHT);
+        drawBlocks(w, h, BLOCK_HEIGHT);
+    }
+
+    public void drawBlocks(int w, int h, int bh) {
+        BlockDivider divider = new BlockDivider(h, bh);
         int[] row = new int[2];
         while (divider.nextBlock(row)) {
             glViewport(0, row[0], w, row[1]);

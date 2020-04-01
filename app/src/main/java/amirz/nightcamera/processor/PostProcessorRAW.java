@@ -45,11 +45,16 @@ public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
     public File[] processToFiles(ImageData[] images) {
         ImageData img = images[images.length - 1];
         Log.d(TAG, "Process image count: " + images.length);
-        if (images.length > 1 && DevicePreset.getInstance().isBright()) {
+        if (images.length > 1) {
             mDeepList.clear();
             // Add in reverse order, so newest is 0.
             for (int i = images.length - 1; i >= 0; i--) {
                 mDeepList.add(images[i]);
+
+                // Cap at three frames when not using night mode.
+                if (!DevicePreset.getInstance().isBright() && mDeepList.size() >= 3) {
+                    break;
+                }
             }
 
             if (mStagePipeline == null) {

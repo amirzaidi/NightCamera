@@ -1,7 +1,5 @@
 package amirz.nightcamera.pipeline;
 
-import android.graphics.Bitmap;
-
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +22,7 @@ public class StagePipeline implements AutoCloseable {
         mCore = new GLCore(width, height, loader);
         mConverter = mCore.getProgram();
 
-        addStage(new Analyze(images, width, height));
+        addStage(new Align(images, width, height));
         addStage(new Merge());
     }
 

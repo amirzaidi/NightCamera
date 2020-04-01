@@ -23,7 +23,7 @@ public class Merge extends Stage {
     public void execute(StagePipeline.StageMap previousStages) {
         GLPrograms converter = getConverter();
 
-        Analyze analyze = previousStages.getStage(Analyze.class);
+        Align analyze = previousStages.getStage(Align.class);
 
         // Assume same size.
         List<Texture> images = analyze.getImages();
