@@ -9,6 +9,7 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.os.Build;
 import androidx.exifinterface.media.ExifInterface;
 import android.util.Range;
+import android.util.Rational;
 import android.util.SparseIntArray;
 import android.view.Surface;
 
@@ -116,13 +117,17 @@ public abstract class DevicePreset {
             builder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, 300 * 1000000L);
             builder.set(CaptureRequest.SENSOR_SENSITIVITY, isoRange.getUpper());
             builder.set(CaptureRequest.CONTROL_POST_RAW_SENSITIVITY_BOOST, boostRange.getLower());
-
         } else {
+            Rational aeStep = stream.characteristics.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_STEP);
+            Range<Integer> aeRange = stream.characteristics.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_RANGE);
+            int steps = Math.round(0.333f / aeStep.floatValue());
+            int aeCompensate = Math.max(aeRange.getLower(), -steps);
+
             builder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
             builder.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO);
             builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO);
             builder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON);
-            builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 0);
+            builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, aeCompensate);
             builder.set(CaptureRequest.CONTROL_AE_ANTIBANDING_MODE, CaptureRequest.CONTROL_AE_ANTIBANDING_MODE_AUTO);
         }
 
