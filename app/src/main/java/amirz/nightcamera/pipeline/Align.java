@@ -22,6 +22,7 @@ import static android.opengl.GLES20.glReadPixels;
 
 public class Align extends Stage {
     private final List<ImageData> mImages;
+    private final int mWidth, mHeight;
     private final Texture.Config mConfig;
     private final Texture.Config mDownscaleConfig;
     private final List<Texture> mTextures = new ArrayList<>();
@@ -29,9 +30,10 @@ public class Align extends Stage {
 
     Align(List<ImageData> images, int width, int height) {
         mImages = images;
+        mWidth = width;
+        mHeight = height;
 
         mConfig = new Texture.Config();
-        mConfig.w = width;
         mConfig.h = height;
         mConfig.format = Texture.Format.UInt16;
 
@@ -39,6 +41,10 @@ public class Align extends Stage {
         mDownscaleConfig.w = width / 2;
         mDownscaleConfig.h = height / 2;
         mDownscaleConfig.format = Texture.Format.UInt16;
+    }
+
+    public int[] getSize() {
+        return new int[] { mWidth, mHeight };
     }
 
     List<Texture> getImages() {
@@ -73,6 +79,8 @@ public class Align extends Stage {
 
             ImageData imageData = mImages.get(i);
             mConfig.pixels = imageData.buffer(0);
+            mConfig.w = imageData.image.getPlanes()[0].getRowStride() / 2; // Might be wider than w.
+
             Texture in = new Texture(mConfig);
             mTextures.add(in);
             in.bind(GL_TEXTURE0);
@@ -86,11 +94,14 @@ public class Align extends Stage {
                 baseImage = new Pyramid(converter, ds);
                 mAlignments.add(new int[2]);
             } else {
+                // Automatically closes downscaled texture.
                 try (Pyramid alignImage = new Pyramid(converter, ds)) {
                     mAlignments.add(align(converter, baseImage, alignImage));
                 }
             }
         }
+
+        baseImage.close();
     }
 
     private int[] align(GLPrograms converter, Pyramid baseImage, Pyramid alignImage) {

@@ -29,10 +29,11 @@ public class Merge extends Stage {
         List<Texture> images = analyze.getImages();
         Texture centerFrame = images.get(0);
         List<int[]> alignments = analyze.getAlignments();
+        int[] size = analyze.getSize();
 
         converter.seti("alignCount", images.size() - 1);
         converter.seti("centerFrame", 0);
-        converter.seti("frameSize", centerFrame.getWidth(), centerFrame.getHeight());
+        converter.seti("frameSize", size);
         centerFrame.bind(GL_TEXTURE0);
         for (int i = 1; i < images.size(); i++) {
             converter.seti("alignFrame" + i, 2 * i);
@@ -40,8 +41,7 @@ public class Merge extends Stage {
             converter.seti("alignVec" + i, alignments.get(i));
         }
 
-        mTexture = new Texture(centerFrame.getWidth(), centerFrame.getHeight(), 1,
-                Texture.Format.UInt16, null);
+        mTexture = new Texture(size[0], size[1], 1, Texture.Format.UInt16, null);
         mTexture.setFrameBuffer();
     }
 

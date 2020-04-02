@@ -58,10 +58,11 @@ public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
         ByteBuffer buffer = null;
 
         Size size = mStreamFormat.size;
-        if (p.getPixelStride() != DEFAULT_PIXEL_STRIDE
-                || p.getRowStride() != DEFAULT_PIXEL_STRIDE * size.getWidth()) {
-            Log.d(TAG, "Plane not supported: " + p.getPixelStride() + " " + p.getRowStride());
-        } else if (images.length > 1) {
+
+        Log.d(TAG, "Size " + img.image.getWidth() + " " + img.image.getHeight());
+        Log.d(TAG, "Plane: " + p.getPixelStride() + " " + p.getRowStride());
+
+        if (images.length > 1) {
             // Add in reverse order, so newest is 0.
             mDeepList.clear();
             for (int i = images.length - 1; i >= 0; i--) {
