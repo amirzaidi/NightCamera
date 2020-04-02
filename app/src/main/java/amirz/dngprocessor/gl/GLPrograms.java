@@ -1,8 +1,8 @@
 package amirz.dngprocessor.gl;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 import amirz.dngprocessor.math.BlockDivider;
 import amirz.nightcamera.R;
@@ -12,11 +12,11 @@ import static android.opengl.GLES20.*;
 import static android.opengl.GLES30.*;
 
 public class GLPrograms implements AutoCloseable {
-    public final int vertexShader;
+    private final int vertexShader;
 
     private final ShaderLoader mShaderLoader;
     private final SquareModel mSquare = new SquareModel();
-    private final List<Integer> mPrograms = new ArrayList<>();
+    private final Map<Integer, Integer> mPrograms = new HashMap<>();
     private int mProgramActive;
 
     public GLPrograms(ShaderLoader shaderLoader) {
@@ -24,26 +24,30 @@ public class GLPrograms implements AutoCloseable {
         vertexShader = loadShader(GL_VERTEX_SHADER, shaderLoader.readRaw(R.raw.passthrough_vs));
     }
 
+    @SuppressWarnings("ConstantConditions")
     public void useProgram(int fragmentRes) {
-        int program = createProgram(vertexShader, mShaderLoader.readRaw(fragmentRes));
+        int program = mPrograms.containsKey(fragmentRes)
+                ? mPrograms.get(fragmentRes)
+                : createProgram(vertexShader, fragmentRes);
 
         glLinkProgram(program);
         glUseProgram(program);
         mProgramActive = program;
     }
 
-    public int createProgram(int vertex, String fragmentId) {
+    private int createProgram(int vertex, int fragmentRes) {
         int fragment;
+        String fragmentCode = mShaderLoader.readRaw(fragmentRes);
         try {
-            fragment = loadShader(GL_FRAGMENT_SHADER, fragmentId);
+            fragment = loadShader(GL_FRAGMENT_SHADER, fragmentCode);
         } catch (RuntimeException e) {
-            throw new RuntimeException("Error initializing fragment shader:\n" + fragmentId, e);
+            throw new RuntimeException("Error initializing fragment shader:\n" + fragmentCode, e);
         }
 
         int program = glCreateProgram();
         glAttachShader(program, vertex);
         glAttachShader(program, fragment);
-        mPrograms.add(program);
+        mPrograms.put(fragmentRes, program);
         return program;
     }
 
@@ -68,7 +72,7 @@ public class GLPrograms implements AutoCloseable {
     @Override
     public void close() {
         // Clean everything up
-        for (int program : mPrograms) {
+        for (int program : mPrograms.values()) {
             glDeleteProgram(program);
         }
     }

@@ -1,8 +1,5 @@
 package amirz.nightcamera.processor;
 
-import android.graphics.ImageFormat;
-import android.graphics.Rect;
-import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.DngCreator;
 import android.media.Image;
 import android.util.Log;
@@ -25,6 +22,8 @@ import amirz.nightcamera.server.CameraServer;
 public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
     private static final String TAG = "PostProcessorRAW";
 
+    private static final int DEFAULT_PIXEL_STRIDE = 2; // bytes per sample
+
     private static final String TEMP_FILE_PREFIX = "NightCamera";
     private static final String TEMP_FILE_SUFFIX = ".tmp";
 
@@ -41,39 +40,49 @@ public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
         super(cameraFormatSize);
     }
 
+    private void initStagePipeline() {
+        if (mStagePipeline == null) {
+            mStagePipeline = new StagePipeline(Collections.unmodifiableList(mDeepList),
+                    mStreamFormat.size.getWidth(),
+                    mStreamFormat.size.getHeight(),
+                    sShaderLoader);
+        }
+    }
+
     @Override
     public File[] processToFiles(ImageData[] images) {
-        ImageData img = images[images.length - 1];
         Log.d(TAG, "Process image count: " + images.length);
-        if (images.length > 1) {
-            mDeepList.clear();
+
+        ImageData img = images[images.length - 1];
+        Image.Plane p = img.image.getPlanes()[0];
+        ByteBuffer buffer = null;
+
+        Size size = mStreamFormat.size;
+        if (p.getPixelStride() != DEFAULT_PIXEL_STRIDE
+                || p.getRowStride() != DEFAULT_PIXEL_STRIDE * size.getWidth()) {
+            Log.d(TAG, "Plane not supported: " + p.getPixelStride() + " " + p.getRowStride());
+        } else if (images.length > 1) {
             // Add in reverse order, so newest is 0.
+            mDeepList.clear();
             for (int i = images.length - 1; i >= 0; i--) {
                 mDeepList.add(images[i]);
-
-                // Cap at three frames when not using night mode.
-                if (!DevicePreset.getInstance().isBright() && mDeepList.size() >= 3) {
-                    break;
-                }
             }
 
-            if (mStagePipeline == null) {
-                mStagePipeline = new StagePipeline(Collections.unmodifiableList(mDeepList),
-                        mStreamFormat.size.getWidth(),
-                        mStreamFormat.size.getHeight(),
-                        sShaderLoader);
-            }
-
-            // Overwrite original buffer.
-            ByteBuffer newBuffer = mStagePipeline.execute();
-            img.buffer(0).put(newBuffer);
+            initStagePipeline();
+            buffer = mStagePipeline.execute();
         }
 
         try (DngCreator dngCreator = new DngCreator(mStreamFormat.characteristics, img.result)) {
             dngCreator.setOrientation(mDevice.getExifRotation(mStreamFormat.id, img.motion.mRot));
             File tmp = File.createTempFile(TEMP_FILE_PREFIX, TEMP_FILE_SUFFIX);
             try (FileOutputStream output = new FileOutputStream(tmp)) {
-                dngCreator.writeImage(output, img.image);
+                if (buffer == null) {
+                    Log.d(TAG, "Saving image directly");
+                    dngCreator.writeImage(output, img.image);
+                } else {
+                    Log.d(TAG, "Saving rendered buffer");
+                    dngCreator.writeByteBuffer(output, size, buffer, 0);
+                }
             }
             return new File[] { tmp };
         } catch (IOException e) {

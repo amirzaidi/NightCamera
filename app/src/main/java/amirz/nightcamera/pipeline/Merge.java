@@ -27,24 +27,27 @@ public class Merge extends Stage {
 
         // Assume same size.
         List<Texture> images = analyze.getImages();
+        Texture centerFrame = images.get(0);
         List<int[]> alignments = analyze.getAlignments();
 
-        converter.seti("alignCount", images.size());
+        converter.seti("alignCount", images.size() - 1);
         converter.seti("centerFrame", 0);
-        images.get(0).bind(GL_TEXTURE0);
-        for (int i = 1; i <= 4; i++) {
+        converter.seti("frameSize", centerFrame.getWidth(), centerFrame.getHeight());
+        centerFrame.bind(GL_TEXTURE0);
+        for (int i = 1; i < images.size(); i++) {
             converter.seti("alignFrame" + i, 2 * i);
             images.get(i).bind(GL_TEXTURE0 + 2 * i);
             converter.seti("alignVec" + i, alignments.get(i));
         }
 
-        mTexture = new Texture(images.get(0).getWidth(), images.get(0).getHeight(), 1, Texture.Format.UInt16, null);
+        mTexture = new Texture(centerFrame.getWidth(), centerFrame.getHeight(), 1,
+                Texture.Format.UInt16, null);
         mTexture.setFrameBuffer();
     }
 
     @Override
     public int getShader() {
-        return R.raw.stage2_merge_fs;
+        return R.raw.stage3_merge_fs;
     }
 
     @Override
