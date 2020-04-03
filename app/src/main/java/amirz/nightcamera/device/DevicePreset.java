@@ -16,6 +16,8 @@ import android.view.Surface;
 import amirz.nightcamera.server.CameraServer;
 
 public abstract class DevicePreset {
+    private static final long NIGHT_EXPOSURE = (1000 * 1000000L) / 4;
+
     private static DevicePreset sInstance;
 
     public static DevicePreset getInstance() {
@@ -112,9 +114,9 @@ public abstract class DevicePreset {
             Range<Integer> isoRange = stream.characteristics.get(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE);
             Range<Integer> boostRange = stream.characteristics.get(CameraCharacteristics.CONTROL_POST_RAW_SENSITIVITY_BOOST_RANGE);
 
-            // 0.3s exposure time, at maximum ISO.
-            builder.set(CaptureRequest.SENSOR_FRAME_DURATION, 300 * 1000000L);
-            builder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, 300 * 1000000L);
+            // 1/4s exposure time, at maximum ISO.
+            builder.set(CaptureRequest.SENSOR_FRAME_DURATION, NIGHT_EXPOSURE);
+            builder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, NIGHT_EXPOSURE);
             builder.set(CaptureRequest.SENSOR_SENSITIVITY, isoRange.getUpper());
             builder.set(CaptureRequest.CONTROL_POST_RAW_SENSITIVITY_BOOST, boostRange.getLower());
         } else {
