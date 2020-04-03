@@ -10,11 +10,15 @@ uniform usampler2D alignFrame1;
 uniform usampler2D alignFrame2;
 uniform usampler2D alignFrame3;
 uniform usampler2D alignFrame4;
+uniform usampler2D alignFrame5;
+uniform usampler2D alignFrame6;
 
 uniform ivec2 alignVec1;
 uniform ivec2 alignVec2;
 uniform ivec2 alignVec3;
 uniform ivec2 alignVec4;
+uniform ivec2 alignVec5;
+uniform ivec2 alignVec6;
 
 // Out
 out int result;
@@ -24,7 +28,7 @@ bool isInLimits(ivec2 xy) {
 }
 
 int getResult(ivec2 xy) {
-    int px[5], tmp;
+    int px[7], tmp;
     ivec2 xyAligned;
 
     px[0] = int(texelFetch(centerFrame, xy, 0).x);
@@ -55,6 +59,20 @@ int getResult(ivec2 xy) {
         xyAligned = xy + alignVec4;
         if (isInLimits(xyAligned)) {
             px[p++] = int(texelFetch(alignFrame4, xyAligned, 0).x);
+        }
+    }
+
+    if (alignCount >= 5) {
+        xyAligned = xy + alignVec5;
+        if (isInLimits(xyAligned)) {
+            px[p++] = int(texelFetch(alignFrame5, xyAligned, 0).x);
+        }
+    }
+
+    if (alignCount >= 6) {
+        xyAligned = xy + alignVec6;
+        if (isInLimits(xyAligned)) {
+            px[p++] = int(texelFetch(alignFrame6, xyAligned, 0).x);
         }
     }
 
