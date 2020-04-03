@@ -25,7 +25,7 @@ public class CameraZSLQueue extends CameraFramesSaver {
 
     public CameraZSLQueue(CameraServer.CameraStreamFormat streamFormat, MotionTracker motionTracker) {
         // Temporary hardcode
-        super(5, 2);
+        super(7, 2);
 
         mSurfaceReader = ImageReader.newInstance(
                 streamFormat.size.getWidth(),
