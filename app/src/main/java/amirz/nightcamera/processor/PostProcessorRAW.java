@@ -22,8 +22,6 @@ import amirz.nightcamera.server.CameraServer;
 public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
     private static final String TAG = "PostProcessorRAW";
 
-    private static final int DEFAULT_PIXEL_STRIDE = 2; // bytes per sample
-
     private static final String TEMP_FILE_PREFIX = "NightCamera";
     private static final String TEMP_FILE_SUFFIX = ".tmp";
 
@@ -67,6 +65,11 @@ public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
             mDeepList.clear();
             for (int i = images.length - 1; i >= 0; i--) {
                 mDeepList.add(images[i]);
+
+                // Only add three frames in regular mode to reduce motion artifacts.
+                if (!DevicePreset.getInstance().isBright() && mDeepList.size() >= 3) {
+                    break;
+                }
             }
 
             initStagePipeline();
