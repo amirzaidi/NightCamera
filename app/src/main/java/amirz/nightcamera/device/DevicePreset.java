@@ -120,10 +120,11 @@ public abstract class DevicePreset {
             builder.set(CaptureRequest.SENSOR_SENSITIVITY, isoRange.getUpper());
             builder.set(CaptureRequest.CONTROL_POST_RAW_SENSITIVITY_BOOST, boostRange.getLower());
         } else {
-            Rational aeStep = stream.characteristics.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_STEP);
-            Range<Integer> aeRange = stream.characteristics.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_RANGE);
-            int steps = Math.round(0.333f / aeStep.floatValue());
-            int aeCompensate = Math.max(aeRange.getLower(), -steps);
+            //Rational aeStep = stream.characteristics.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_STEP);
+            //Range<Integer> aeRange = stream.characteristics.get(CameraCharacteristics.CONTROL_AE_COMPENSATION_RANGE);
+            //int steps = Math.round(0.333f / aeStep.floatValue());
+            //int aeCompensate = Math.max(aeRange.getLower(), -steps);
+            int aeCompensate = 0;
 
             builder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
             builder.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO);
