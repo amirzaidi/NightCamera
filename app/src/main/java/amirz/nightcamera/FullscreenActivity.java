@@ -1,6 +1,5 @@
 package amirz.nightcamera;
 
-import android.graphics.SurfaceTexture;
 import android.hardware.camera2.CameraAccessException;
 import android.os.Bundle;
 import android.view.Surface;
@@ -35,6 +34,12 @@ import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 
 public class FullscreenActivity extends AppCompatActivity implements CameraStreamCallbacks {
+    private static final int[] EXPOSURE_DRAWABLES = new int[] {
+            R.drawable.brightness_auto,
+            R.drawable.brightness_day,
+            R.drawable.brightness_night
+    };
+
     private static final int REQUEST_PERMISSIONS = 200;
 
     private MainThreadDelegate mCallbackDelegate;
@@ -46,7 +51,7 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
     private PathFinder mPathFinder;
 
     public FloatingActionButton mSwitcher, mShutter, mVideo, mExposure;
-    private boolean mExposureBright;
+    private int mExposureMode;
 
     private AutoFitTextureView mTextureView;
 
@@ -125,13 +130,11 @@ public class FullscreenActivity extends AppCompatActivity implements CameraStrea
             mVideo*/
         });
 
-        DevicePreset.getInstance().setBright(mExposureBright);
+        DevicePreset.getInstance().setExposureMode(mExposureMode);
         mExposure.setOnClickListener(view -> {
-            mExposureBright = !mExposureBright;
-            mExposure.setImageDrawable(mExposureBright
-                    ? getDrawable(R.drawable.brightness_bright)
-                    : getDrawable(R.drawable.brightness_auto));
-            DevicePreset.getInstance().setBright(mExposureBright);
+            mExposureMode = (mExposureMode + 1) % EXPOSURE_DRAWABLES.length;
+            mExposure.setImageDrawable(getDrawable(EXPOSURE_DRAWABLES[mExposureMode]));
+            DevicePreset.getInstance().setExposureMode(mExposureMode);
         });
     }
 

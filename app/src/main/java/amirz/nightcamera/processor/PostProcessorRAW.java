@@ -67,7 +67,7 @@ public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
                 mDeepList.add(images[i]);
 
                 // Only add three frames in regular mode to reduce motion artifacts.
-                if (!DevicePreset.getInstance().isBright() && mDeepList.size() >= 3) {
+                if (DevicePreset.getInstance().getMode() != 2 && mDeepList.size() >= 3) {
                     break;
                 }
             }
