@@ -93,19 +93,15 @@ void main() {
         }
     }
 
-    uvec4 lowerBits = uvec4(
+    result = 256u * uvec4(
+        uint(yAlign.x + bestYShift.x + 128),
+        uint(yAlign.y + bestYShift.y + 128),
+        uint(yAlign.z + bestYShift.z + 128),
+        uint(yAlign.w + bestYShift.w + 128)
+    ) + uvec4(
         uint(xAlign.x + bestXShift.x + 128),
         uint(xAlign.y + bestXShift.y + 128),
         uint(xAlign.z + bestXShift.z + 128),
         uint(xAlign.w + bestXShift.w + 128)
     );
-
-    uvec4 higherBits = uvec4(
-        uint(yAlign.x + bestYShift.x + 128),
-        uint(yAlign.y + bestYShift.y + 128),
-        uint(yAlign.z + bestYShift.z + 128),
-        uint(yAlign.w + bestYShift.w + 128)
-    );
-
-    result = 256u * higherBits + lowerBits;
 }
