@@ -35,8 +35,7 @@ void main() {
         refData[i] = texelFetch(refFrame, xyRef, 0).x;
     }
 
-    ivec4 bestXShift;
-    ivec4 bestYShift;
+    ivec4 bestXShift, bestYShift;
     vec4 bestXYNoise = vec4(FLT_MAX);
 
     for (int dY = -ALIGN_MAX_SHIFT; dY <= ALIGN_MAX_SHIFT; dY++) {
@@ -62,10 +61,8 @@ void main() {
                     );
 
                     // All frame data is loaded, compare reference frame with other frames.
-                    vec4 diff = vec4(abs(ivec4(altDataVal) - int(refDataVal)));
-
                     // Linear noise model.
-                    currXYNoise += diff;
+                    currXYNoise += vec4(abs(ivec4(altDataVal) - int(refDataVal)));
                 }
             }
 
