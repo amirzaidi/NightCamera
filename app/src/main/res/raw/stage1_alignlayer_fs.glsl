@@ -29,14 +29,9 @@ void main() {
     }
 
     ivec2 xyFrame = xy * TILE_SIZE;
-    uvec4 altData[TILE_PX_COUNT]; // Indices match with refData if we would keep the alignments at 0, 0
     uint refData[TILE_PX_COUNT];
     for (int i = 0; i < TILE_PX_COUNT; i++) {
         ivec2 xyRef = xyFrame + ivec2(i % TILE_SIZE, i / TILE_SIZE);
-        altData[i].x = texelFetch(altFrame, xyRef + ivec2(xAlign.x, yAlign.x), 0).x;
-        altData[i].y = texelFetch(altFrame, xyRef + ivec2(xAlign.y, yAlign.y), 0).y;
-        altData[i].z = texelFetch(altFrame, xyRef + ivec2(xAlign.z, yAlign.z), 0).z;
-        altData[i].w = texelFetch(altFrame, xyRef + ivec2(xAlign.w, yAlign.w), 0).w;
         refData[i] = texelFetch(refFrame, xyRef, 0).x;
     }
 
@@ -51,28 +46,26 @@ void main() {
             // Iterate over refData, processing all altData frames simultaneously.
             for (int y = 0; y < TILE_SIZE; y++) {
                 int shiftedY = y + dY;
-                bool isYInCache = shiftedY >= 0 && shiftedY < TILE_SIZE;
+                //bool isYInCache = shiftedY >= 0 && shiftedY < TILE_SIZE;
                 for (int x = 0; x < TILE_SIZE; x++) {
                     // RefData is always in cache.
                     uint refDataVal = refData[y * TILE_SIZE + x];
-                    uvec4 altDataVal;
                     int shiftedX = x + dX;
-                    if (isYInCache && shiftedX >= 0 && shiftedX < TILE_SIZE) {
-                        // Get from cache.
-                        altDataVal = altData[shiftedY * TILE_SIZE + shiftedX];
-                    } else {
-                        // Do a slow texelFetch.
-                        ivec2 xyRef = xyFrame + ivec2(shiftedX, shiftedY);
-                        altDataVal.x = texelFetch(altFrame, xyRef + ivec2(xAlign.x, yAlign.x), 0).x;
-                        altDataVal.y = texelFetch(altFrame, xyRef + ivec2(xAlign.y, yAlign.y), 0).y;
-                        altDataVal.z = texelFetch(altFrame, xyRef + ivec2(xAlign.z, yAlign.z), 0).z;
-                        altDataVal.w = texelFetch(altFrame, xyRef + ivec2(xAlign.w, yAlign.w), 0).w;
-                    }
+                    ivec2 xyRef = xyFrame + ivec2(shiftedX, shiftedY);
+
+                    // Do a very slow texelFetch.
+                    uvec4 altDataVal = uvec4(
+                        texelFetch(altFrame, xyRef + ivec2(xAlign.x, yAlign.x), 0).x,
+                        texelFetch(altFrame, xyRef + ivec2(xAlign.y, yAlign.y), 0).y,
+                        texelFetch(altFrame, xyRef + ivec2(xAlign.z, yAlign.z), 0).z,
+                        texelFetch(altFrame, xyRef + ivec2(xAlign.w, yAlign.w), 0).w
+                    );
 
                     // All frame data is loaded, compare reference frame with other frames.
                     vec4 diff = vec4(abs(ivec4(altDataVal) - int(refDataVal)));
+
+                    // Linear noise model.
                     currXYNoise += diff;
-                    //currXYNoise += diff * diff;
                 }
             }
 
