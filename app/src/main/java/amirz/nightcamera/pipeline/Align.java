@@ -1,5 +1,6 @@
 package amirz.nightcamera.pipeline;
 
+import android.media.Image;
 import android.util.Log;
 
 import java.nio.ByteBuffer;
@@ -14,19 +15,21 @@ import amirz.dngprocessor.pipeline.Stage;
 import amirz.nightcamera.R;
 import amirz.nightcamera.data.ImageData;
 
-import static android.opengl.GLES10.GL_RGBA;
-import static android.opengl.GLES20.GL_FLOAT;
 import static android.opengl.GLES20.GL_TEXTURE0;
 import static android.opengl.GLES20.GL_TEXTURE2;
+import static android.opengl.GLES20.GL_UNSIGNED_INT;
+import static android.opengl.GLES20.glGetError;
 import static android.opengl.GLES20.glReadPixels;
+import static android.opengl.GLES30.GL_RGBA_INTEGER;
 
 public class Align extends Stage {
     private final List<ImageData> mImages;
     private final int mWidth, mHeight;
     private final Texture.Config mConfig;
-    private final Texture.Config mDownscaleConfig;
+    //private final Texture.Config mDownscaleConfig;
     private final List<Texture> mTextures = new ArrayList<>();
     private final List<int[]> mAlignments = new ArrayList<>();
+    private Texture mAlign;
 
     Align(List<ImageData> images, int width, int height) {
         mImages = images;
@@ -37,10 +40,12 @@ public class Align extends Stage {
         mConfig.h = height;
         mConfig.format = Texture.Format.UInt16;
 
+        /*
         mDownscaleConfig = new Texture.Config();
         mDownscaleConfig.w = width / 2;
         mDownscaleConfig.h = height / 2;
         mDownscaleConfig.format = Texture.Format.UInt16;
+         */
     }
 
     public int[] getSize() {
@@ -55,9 +60,132 @@ public class Align extends Stage {
         return Collections.unmodifiableList(mAlignments.subList(0, mImages.size()));
     }
 
+    Texture getAlign() {
+        return mAlign;
+    }
+
+    private class TexPyramid implements AutoCloseable {
+        private static final int DOWNSAMPLE_SCALE = 4;
+        private static final int TILE_SIZE = 8;
+        private static final int BH = 1;
+
+        private final Texture mLargeRes, mMidRes, mSmallRes;
+        private Texture mSmallAlign, mMidAlign, mLargeAlign;
+
+        private TexPyramid(List<ImageData> images) {
+            GLPrograms converter = getConverter();
+
+            Image firstImage = images.get(0).image;
+            int width = firstImage.getWidth();
+            int height = firstImage.getHeight();
+            mConfig.w = firstImage.getPlanes()[0].getRowStride() / 2; // Might be wider than w.
+
+            mLargeRes = new Texture(width / 2, height / 2, 4,
+                    Texture.Format.UInt16, null);
+
+            mMidRes = new Texture(mLargeRes.getWidth() / DOWNSAMPLE_SCALE + 1,
+                    mLargeRes.getHeight() / DOWNSAMPLE_SCALE + 1, 4,
+                    Texture.Format.UInt16, null);
+
+            mSmallRes = new Texture(mMidRes.getWidth() / DOWNSAMPLE_SCALE + 1,
+                    mMidRes.getHeight() / DOWNSAMPLE_SCALE + 1, 4,
+                    Texture.Format.UInt16, null);
+
+            converter.useProgram(R.raw.stage0_downscale_boxdown2_fs);
+
+            for (int i = 0; i < images.size(); i++) {
+                ImageData imageData = images.get(i);
+                mConfig.pixels = imageData.buffer(0);
+
+                Texture in = new Texture(mConfig);
+                mTextures.add(in);
+
+                in.bind(GL_TEXTURE0 + 2 * i);
+                converter.seti("frame" + (i + 1), 2 * i);
+            }
+
+            mLargeRes.setFrameBuffer();
+            converter.drawBlocks(mLargeRes.getWidth(), mLargeRes.getHeight());
+
+            converter.useProgram(R.raw.stage0_downscale_gaussdown4_fs);
+            mLargeRes.bind(GL_TEXTURE0);
+            converter.seti("frame", 0);
+            converter.seti("bounds", mLargeRes.getWidth(), mLargeRes.getHeight());
+            mMidRes.setFrameBuffer();
+            converter.drawBlocks(mMidRes.getWidth(), mMidRes.getHeight());
+
+            mMidRes.bind(GL_TEXTURE0);
+            converter.seti("frame", 0);
+            converter.seti("bounds", mMidRes.getWidth(), mMidRes.getHeight());
+            mSmallRes.setFrameBuffer();
+            converter.drawBlocks(mSmallRes.getWidth(), mSmallRes.getHeight());
+        }
+
+        /**
+         * best positions = null
+         * cycle:
+         *  select new shift
+         *  foreach block:
+         *   compute summed diff with new shift
+         *   if new shift is better
+         *    update position of block
+         *  end foreach
+         * end cycle
+         */
+        private void align() {
+            GLPrograms converter = getConverter();
+            converter.useProgram(R.raw.stage1_alignlayer_fs);
+
+            mSmallAlign = new Texture(mSmallRes.getWidth() / TILE_SIZE + 1,
+                    mSmallRes.getHeight() / TILE_SIZE + 1, 4,
+                    Texture.Format.UInt16, null);
+
+            mMidAlign = new Texture(mMidRes.getWidth() / TILE_SIZE + 1,
+                    mMidRes.getHeight() / TILE_SIZE + 1, 4,
+                    Texture.Format.UInt16, null);
+
+            mLargeAlign = new Texture(mLargeRes.getWidth() / TILE_SIZE + 1,
+                    mLargeRes.getHeight() / TILE_SIZE + 1, 4,
+                    Texture.Format.UInt16, null);
+
+            converter.seti("frame", 0);
+            converter.seti("prevLayerAlign", 2);
+            converter.seti("prevLayerScale", 0);
+
+            mSmallRes.bind(GL_TEXTURE0);
+            converter.seti("bounds", mSmallRes.getWidth(), mSmallRes.getHeight());
+            // No PrevAlign on GL_TEXTURE2
+            converter.drawBlocks(mSmallAlign, BH);
+
+            // Enable previous layers from here.
+            converter.seti("prevLayerScale", 4);
+
+            mMidRes.bind(GL_TEXTURE0);
+            converter.seti("bounds", mMidRes.getWidth(), mMidRes.getHeight());
+            mSmallAlign.bind(GL_TEXTURE2);
+            converter.drawBlocks(mMidAlign, BH);
+
+            mLargeRes.bind(GL_TEXTURE0);
+            converter.seti("bounds", mLargeRes.getWidth(), mLargeRes.getHeight());
+            mMidAlign.bind(GL_TEXTURE2);
+            converter.drawBlocks(mLargeAlign, BH);
+        }
+
+        @Override
+        public void close() {
+            mLargeRes.close();
+            mMidRes.close();
+            mSmallRes.close();
+
+            mSmallAlign.close();
+            mMidAlign.close();
+            // Keep mLargeAlign.
+        }
+    }
+
     @Override
     public void execute(StagePipeline.StageMap previousStages) {
-        GLPrograms converter = getConverter();
+        // GLPrograms converter = getConverter();
 
         // Remove all previous textures.
         for (Texture texture : mTextures) {
@@ -66,6 +194,39 @@ public class Align extends Stage {
         mTextures.clear();
         mAlignments.clear();
 
+        if (mImages.size() >= 4) {
+            long startTime = System.currentTimeMillis();
+            try (TexPyramid pyramid = new TexPyramid(mImages.subList(0, 4))) {
+                long subSampleTime = System.currentTimeMillis();
+                long timeSpan = subSampleTime - startTime;
+                // 54ms on non-debug mode
+                Log.d("Align", "Downsample time " + timeSpan / 1000f + "s");
+
+                pyramid.align();
+                long alignTime = System.currentTimeMillis();
+                timeSpan = alignTime - subSampleTime;
+                Log.d("Align", "Align time " + timeSpan / 1000f + "s");
+
+                /*
+                Texture tex = pyramid.mSmallAlign;
+                int w = tex.getWidth();
+                int h = tex.getHeight();
+
+                ByteBuffer buffer = ByteBuffer.allocateDirect(w * h * 4 * 4);
+                int[] uints = new int[w * h * 4];
+
+                // Extract floats
+                glReadPixels(0, 0, w, h, GL_RGBA_INTEGER, GL_UNSIGNED_INT, buffer);
+                buffer.position(0);
+                buffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(uints);
+                Log.d("Align", "Test " + glGetError());
+                 */
+
+                mAlign = pyramid.mLargeAlign;
+            }
+        }
+
+        /*
         Pyramid baseImage = null;
 
         int dsw = mDownscaleConfig.w;
@@ -102,8 +263,10 @@ public class Align extends Stage {
         }
 
         baseImage.close();
+        */
     }
 
+    /*
     private int[] align(GLPrograms converter, Pyramid baseImage, Pyramid alignImage) {
         converter.useProgram(R.raw.stage2_align);
 
@@ -234,10 +397,11 @@ public class Align extends Stage {
 
         return offset;
     }
+     */
 
     @Override
     public int getShader() {
-        return R.raw.stage0_downscale_fs;
+        return R.raw.stage0_downscale_boxdown2_fs;
     }
 
     private static class Pyramid implements AutoCloseable {

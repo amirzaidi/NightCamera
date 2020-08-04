@@ -56,6 +56,16 @@ public class GLPrograms implements AutoCloseable {
         glFlush();
     }
 
+    public void drawBlocks(Texture texture) {
+        texture.setFrameBuffer();
+        drawBlocks(texture.getWidth(), texture.getHeight());
+    }
+
+    public void drawBlocks(Texture texture, int bh) {
+        texture.setFrameBuffer();
+        drawBlocks(texture.getWidth(), texture.getHeight(), bh);
+    }
+
     public void drawBlocks(int w, int h) {
         drawBlocks(w, h, BLOCK_HEIGHT);
     }

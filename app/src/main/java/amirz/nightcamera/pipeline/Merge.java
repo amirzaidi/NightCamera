@@ -23,23 +23,24 @@ public class Merge extends Stage {
     public void execute(StagePipeline.StageMap previousStages) {
         GLPrograms converter = getConverter();
 
-        Align analyze = previousStages.getStage(Align.class);
+        Align align = previousStages.getStage(Align.class);
 
         // Assume same size.
-        List<Texture> images = analyze.getImages();
-        Texture centerFrame = images.get(0);
-        List<int[]> alignments = analyze.getAlignments();
-        int[] size = analyze.getSize();
+        List<Texture> images = align.getImages();
+        int[] size = align.getSize();
 
         converter.seti("alignCount", images.size() - 1);
-        converter.seti("centerFrame", 0);
         converter.seti("frameSize", size);
-        centerFrame.bind(GL_TEXTURE0);
-        for (int i = 1; i < images.size(); i++) {
-            converter.seti("alignFrame" + i, 2 * i);
+        for (int i = 0; i < images.size() - 1; i++) {
+            converter.seti("altFrame" + (i + 1), 2 * i);
             images.get(i).bind(GL_TEXTURE0 + 2 * i);
-            converter.seti("alignVec" + i, alignments.get(i));
         }
+
+        converter.seti("refFrame", 2 * (images.size() - 1));
+        images.get(images.size() - 1).bind(GL_TEXTURE0 + 2 * (images.size() - 1));
+
+        converter.seti("alignment", 2 * images.size() + 2);
+        align.getAlign().bind(GL_TEXTURE0 + 2 * images.size() + 2);
 
         mTexture = new Texture(size[0], size[1], 1, Texture.Format.UInt16, null);
         mTexture.setFrameBuffer();
@@ -47,7 +48,7 @@ public class Merge extends Stage {
 
     @Override
     public int getShader() {
-        return R.raw.stage3_merge_fs;
+        return R.raw.stage2_mergelayer_fs;
     }
 
     @Override

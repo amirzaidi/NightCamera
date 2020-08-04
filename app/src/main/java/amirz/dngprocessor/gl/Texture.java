@@ -61,6 +61,7 @@ public class Texture implements AutoCloseable {
     private final int mChannels;
     private final Format mFormat;
     private final int mTexId;
+    private boolean mClosed;
 
     public Texture(Config config) {
         this(config.w, config.h, config.channels, config.format, config.pixels, config.texFilter,
@@ -98,6 +99,9 @@ public class Texture implements AutoCloseable {
     public void bind(int slot) {
         glActiveTexture(slot);
         glBindTexture(GL_TEXTURE_2D, mTexId);
+        if (mClosed) {
+            throw new RuntimeException("Texture is closed.");
+        }
     }
 
     public void updatePixels(Buffer pixels) {
@@ -134,6 +138,7 @@ public class Texture implements AutoCloseable {
     @Override
     public void close() {
         glDeleteTextures(1, new int[] { mTexId }, 0);
+        mClosed = true;
     }
 
     private int internalFormat() {
