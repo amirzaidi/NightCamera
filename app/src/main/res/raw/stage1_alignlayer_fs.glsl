@@ -9,42 +9,44 @@
 
 precision mediump float;
 
-uniform usampler2D frame;
+uniform usampler2D refFrame;
+uniform usampler2D altFrame;
 uniform ivec2 bounds;
 
 uniform usampler2D prevLayerAlign;
 uniform int prevLayerScale;
 
-out uvec3 result;
+out uvec4 result;
 
 void main() {
     ivec2 xy = ivec2(gl_FragCoord.xy);
-    ivec3 xAlign = ivec3(0);
-    ivec3 yAlign = ivec3(0);
+    ivec4 xAlign = ivec4(0);
+    ivec4 yAlign = ivec4(0);
     if (prevLayerScale > 0) {
-        uvec3 xyAlign = texelFetch(prevLayerAlign, xy / 4, 0).xyz;
-        xAlign = (ivec3(xyAlign % 256u) - 128) * prevLayerScale;
-        yAlign = (ivec3(xyAlign / 256u) - 128) * prevLayerScale;
+        uvec4 xyAlign = texelFetch(prevLayerAlign, xy / 4, 0);
+        xAlign = (ivec4(xyAlign % 256u) - 128) * prevLayerScale;
+        yAlign = (ivec4(xyAlign / 256u) - 128) * prevLayerScale;
     }
 
     ivec2 xyFrame = xy * TILE_SIZE;
-    uvec3 altData[TILE_PX_COUNT]; // Indices match with refData if we would keep the alignments at 0, 0
+    uvec4 altData[TILE_PX_COUNT]; // Indices match with refData if we would keep the alignments at 0, 0
     uint refData[TILE_PX_COUNT];
     for (int i = 0; i < TILE_PX_COUNT; i++) {
         ivec2 xyRef = xyFrame + ivec2(i % TILE_SIZE, i / TILE_SIZE);
-        altData[i].x = texelFetch(frame, xyRef + ivec2(xAlign.x, yAlign.x), 0).x;
-        altData[i].y = texelFetch(frame, xyRef + ivec2(xAlign.y, yAlign.y), 0).y;
-        altData[i].z = texelFetch(frame, xyRef + ivec2(xAlign.z, yAlign.z), 0).z;
-        refData[i] = texelFetch(frame, xyRef, 0).w;
+        altData[i].x = texelFetch(altFrame, xyRef + ivec2(xAlign.x, yAlign.x), 0).x;
+        altData[i].y = texelFetch(altFrame, xyRef + ivec2(xAlign.y, yAlign.y), 0).y;
+        altData[i].z = texelFetch(altFrame, xyRef + ivec2(xAlign.z, yAlign.z), 0).z;
+        altData[i].w = texelFetch(altFrame, xyRef + ivec2(xAlign.w, yAlign.w), 0).w;
+        refData[i] = texelFetch(refFrame, xyRef, 0).x;
     }
 
-    ivec3 bestXShift;
-    ivec3 bestYShift;
-    vec3 bestXYNoise = vec3(FLT_MAX);
+    ivec4 bestXShift;
+    ivec4 bestYShift;
+    vec4 bestXYNoise = vec4(FLT_MAX);
 
     for (int dY = -ALIGN_MAX_SHIFT; dY <= ALIGN_MAX_SHIFT; dY++) {
         for (int dX = -ALIGN_MAX_SHIFT; dX <= ALIGN_MAX_SHIFT; dX++) {
-            vec3 currXYNoise = vec3(0.f);
+            vec4 currXYNoise = vec4(0.f);
 
             // Iterate over refData, processing all altData frames simultaneously.
             for (int y = 0; y < TILE_SIZE; y++) {
@@ -53,7 +55,7 @@ void main() {
                 for (int x = 0; x < TILE_SIZE; x++) {
                     // RefData is always in cache.
                     uint refDataVal = refData[y * TILE_SIZE + x];
-                    uvec3 altDataVal;
+                    uvec4 altDataVal;
                     int shiftedX = x + dX;
                     if (isYInCache && shiftedX >= 0 && shiftedX < TILE_SIZE) {
                         // Get from cache.
@@ -61,13 +63,14 @@ void main() {
                     } else {
                         // Do a slow texelFetch.
                         ivec2 xyRef = xyFrame + ivec2(shiftedX, shiftedY);
-                        altDataVal.x = texelFetch(frame, xyRef + ivec2(xAlign.x, yAlign.x), 0).x;
-                        altDataVal.y = texelFetch(frame, xyRef + ivec2(xAlign.y, yAlign.y), 0).y;
-                        altDataVal.z = texelFetch(frame, xyRef + ivec2(xAlign.z, yAlign.z), 0).z;
+                        altDataVal.x = texelFetch(altFrame, xyRef + ivec2(xAlign.x, yAlign.x), 0).x;
+                        altDataVal.y = texelFetch(altFrame, xyRef + ivec2(xAlign.y, yAlign.y), 0).y;
+                        altDataVal.z = texelFetch(altFrame, xyRef + ivec2(xAlign.z, yAlign.z), 0).z;
+                        altDataVal.w = texelFetch(altFrame, xyRef + ivec2(xAlign.w, yAlign.w), 0).w;
                     }
 
                     // All frame data is loaded, compare reference frame with other frames.
-                    vec3 diff = vec3(abs(ivec3(altDataVal) - int(refDataVal)));
+                    vec4 diff = vec4(abs(ivec4(altDataVal) - int(refDataVal)));
                     currXYNoise += diff;
                     //currXYNoise += diff * diff;
                 }
@@ -89,19 +92,26 @@ void main() {
                 bestXShift.z = dX;
                 bestYShift.z = dY;
             }
+            if (currXYNoise.w < bestXYNoise.w) {
+                bestXYNoise.w = currXYNoise.w;
+                bestXShift.w = dX;
+                bestYShift.w = dY;
+            }
         }
     }
 
-    uvec3 lowerBits = uvec3(
+    uvec4 lowerBits = uvec4(
         uint(xAlign.x + bestXShift.x + 128),
         uint(xAlign.y + bestXShift.y + 128),
-        uint(xAlign.z + bestXShift.z + 128)
+        uint(xAlign.z + bestXShift.z + 128),
+        uint(xAlign.w + bestXShift.w + 128)
     );
 
-    uvec3 higherBits = uvec3(
+    uvec4 higherBits = uvec4(
         uint(yAlign.x + bestYShift.x + 128),
         uint(yAlign.y + bestYShift.y + 128),
-        uint(yAlign.z + bestYShift.z + 128)
+        uint(yAlign.z + bestYShift.z + 128),
+        uint(yAlign.w + bestYShift.w + 128)
     );
 
     result = 256u * higherBits + lowerBits;

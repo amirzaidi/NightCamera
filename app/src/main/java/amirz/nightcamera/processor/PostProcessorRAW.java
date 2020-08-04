@@ -61,10 +61,10 @@ public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
         Log.d(TAG, "Plane: " + p.getPixelStride() + " " + p.getRowStride());
 
         if (images.length > 1) {
-            // Add in chronological order by shifting everything, so newest is last.
+            // Add in reverse order, so newest is 0.
             mDeepList.clear();
             for (int i = images.length - 1; i >= 0; i--) {
-                mDeepList.add(0, images[i]);
+                mDeepList.add(images[i]);
 
                 /*
                 // Only add three frames in regular mode to reduce motion artifacts.
@@ -73,8 +73,8 @@ public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
                 }
                  */
 
-                // Only add four frames for our pipeline.
-                if (mDeepList.size() >= 4) {
+                // Only add five frames for our pipeline.
+                if (mDeepList.size() >= 5) {
                     break;
                 }
             }

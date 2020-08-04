@@ -10,10 +10,7 @@ precision mediump float;
 uniform usampler2D altFrame1;
 uniform usampler2D altFrame2;
 uniform usampler2D altFrame3;
-//uniform usampler2D altFrame4;
-//uniform usampler2D altFrame5;
-//uniform usampler2D altFrame6;
-//uniform usampler2D altFrame7;
+uniform usampler2D altFrame4;
 uniform usampler2D refFrame;
 uniform usampler2D alignment;
 uniform int alignCount;
@@ -24,7 +21,6 @@ uniform ivec2 frameSize;
 out int result;
 
 bool isInLimits(ivec2 xy) {
-    //return true;
     return xy.x >= 0 && xy.y >= 0 && xy.x < frameSize.x && xy.y < frameSize.y;
 }
 
@@ -33,11 +29,11 @@ int getResult(ivec2 xy) {
     ivec2 xyAligned;
 
     // Divide by TILE_SIZE, so we select the alignments for the current tile.
-    uvec3 xyAlign = texelFetch(alignment, xy / TILE_SIZE, 0).xyz;
+    uvec4 xyAlign = texelFetch(alignment, xy / TILE_SIZE, 0);
 
     // Multiply by two, as we used a 2x boxdowned grayscale image.
-    ivec3 xAlign = (ivec3(xyAlign % 256u) - 128) * 2;
-    ivec3 yAlign = (ivec3(xyAlign / 256u) - 128) * 2;
+    ivec4 xAlign = (ivec4(xyAlign % 256u) - 128) * 2;
+    ivec4 yAlign = (ivec4(xyAlign / 256u) - 128) * 2;
 
     px[0] = texelFetch(refFrame, xy, 0).x;
     int p = 1;
@@ -65,6 +61,13 @@ int getResult(ivec2 xy) {
         }
     }
 
+    if (alignCount >= 4) {
+        xyAligned = xy + ivec2(xAlign.w, yAlign.w);
+        if (isInLimits(xyAligned)) {
+            px[p++] = texelFetch(altFrame4, xyAligned, 0).x;
+        }
+    }
+
     /*
     uint pxSum = 0u;
     for (int i = 0; i < p; i++) {
@@ -74,8 +77,8 @@ int getResult(ivec2 xy) {
     //*/
 
     //*
-    // Smart median.
 
+    // Smart median.
     for (int i = 1; i < p; i++) {
         for (int j = i - 1; j >= 0; j--) {
             if (px[j] > px[i]) {

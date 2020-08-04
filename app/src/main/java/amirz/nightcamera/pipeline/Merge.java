@@ -31,16 +31,17 @@ public class Merge extends Stage {
 
         converter.seti("alignCount", images.size() - 1);
         converter.seti("frameSize", size);
-        for (int i = 0; i < images.size() - 1; i++) {
-            converter.seti("altFrame" + (i + 1), 2 * i);
+
+        converter.seti("refFrame", 0);
+        images.get(0).bind(GL_TEXTURE0);
+
+        for (int i = 1; i < images.size(); i++) {
+            converter.seti("altFrame" + i, 2 * i);
             images.get(i).bind(GL_TEXTURE0 + 2 * i);
         }
 
-        converter.seti("refFrame", 2 * (images.size() - 1));
-        images.get(images.size() - 1).bind(GL_TEXTURE0 + 2 * (images.size() - 1));
-
-        converter.seti("alignment", 2 * images.size() + 2);
-        align.getAlign().bind(GL_TEXTURE0 + 2 * images.size() + 2);
+        converter.seti("alignment", 2 * images.size());
+        align.getAlign().bind(GL_TEXTURE0 + 2 * images.size());
 
         mTexture = new Texture(size[0], size[1], 1, Texture.Format.UInt16, null);
         mTexture.setFrameBuffer();

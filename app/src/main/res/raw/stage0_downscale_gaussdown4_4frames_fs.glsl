@@ -14,7 +14,7 @@ float gauss[25] = float[](
 uniform usampler2D frame;
 uniform ivec2 bounds;
 
-out uint result;
+out uvec4 result;
 
 ivec2 mirrorOOBCoords(ivec2 coords) {
     ivec2 newCoords;
@@ -38,11 +38,11 @@ ivec2 mirrorOOBCoords(ivec2 coords) {
 
 void main() {
     ivec2 xy = ivec2(gl_FragCoord.xy) * 4;
-    float val = 0.f;
+    vec4 val = vec4(0.f);
     for (int i = 0; i < 25; i++) {
         ivec2 xyp = xy + ivec2((i % 5) - 2, (i / 5) - 2);
         xyp = mirrorOOBCoords(xyp);
-        val += gauss[i] * float(texelFetch(frame, xyp, 0).x);
+        val += gauss[i] * vec4(texelFetch(frame, xyp, 0));
     }
-    result = uint(val);
+    result = uvec4(val);
 }
