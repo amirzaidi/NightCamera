@@ -119,7 +119,7 @@ void main() {
     vec2 TileCoords = vec2(iTileCoords);
     TileCoords*=1.0/float(TILE_SIZE);
     //From 0.0 to 1.0 for cosin
-    
+
     float cosw = cos(TileCoords.x + TileCoords.y);
     // Same code but for x, y, z, w.
     if (alignCount >= 1) {
