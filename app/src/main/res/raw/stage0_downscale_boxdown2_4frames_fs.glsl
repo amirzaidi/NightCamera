@@ -30,6 +30,6 @@ void main() {
     vec2 val4 = getValForTex(frame4, xy);
 
     // Add weights using CFA later.
-    result = (vec4(val1.x, val2.x, val3.x, val4.x)
-        + vec4(val1.y, val2.y, val3.y, val4.y))/2.0;
+    result = 0.5f * vec4(val1.x, val2.x, val3.x, val4.x)
+        + 0.5f * vec4(val1.y, val2.y, val3.y, val4.y);
 }
