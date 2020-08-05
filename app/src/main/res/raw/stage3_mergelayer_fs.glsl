@@ -21,11 +21,6 @@ uniform ivec2 frameSize;
 // Out
 out int result;
 
-bool isInLimits(ivec2 xy) {
-    return true;
-    //return xy.x >= 0 && xy.y >= 0 && xy.x < frameSize.x && xy.y < frameSize.y;
-}
-
 ivec4[2] getOffsets(ivec2 xy) {
     uvec4 xyAlign;
     ivec4 xAlign, yAlign;
@@ -120,30 +115,22 @@ void main() {
 
     if (alignCount >= 1) {
         xyAligned = xy + ivec2(xAlign.x, yAlign.x);
-        if (isInLimits(xyAligned)) {
-            px[p++] = texelFetch(altFrame1, xyAligned, 0).x;
-        }
+        px[p++] = texelFetch(altFrame1, xyAligned, 0).x;
     }
 
     if (alignCount >= 2) {
         xyAligned = xy + ivec2(xAlign.y, yAlign.y);
-        if (isInLimits(xyAligned)) {
-            px[p++] = texelFetch(altFrame2, xyAligned, 0).x;
-        }
+        px[p++] = texelFetch(altFrame2, xyAligned, 0).x;
     }
 
     if (alignCount >= 3) {
         xyAligned = xy + ivec2(xAlign.z, yAlign.z);
-        if (isInLimits(xyAligned)) {
-            px[p++] = texelFetch(altFrame3, xyAligned, 0).x;
-        }
+        px[p++] = texelFetch(altFrame3, xyAligned, 0).x;
     }
 
     if (alignCount >= 4) {
         xyAligned = xy + ivec2(xAlign.w, yAlign.w);
-        if (isInLimits(xyAligned)) {
-            px[p++] = texelFetch(altFrame4, xyAligned, 0).x;
-        }
+        px[p++] = texelFetch(altFrame4, xyAligned, 0).x;
     }
 
     uint pxSum = 0u;

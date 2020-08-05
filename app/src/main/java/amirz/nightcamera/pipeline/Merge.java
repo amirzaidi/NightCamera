@@ -49,7 +49,7 @@ public class Merge extends Stage {
 
     @Override
     public int getShader() {
-        return R.raw.stage2_mergelayer_fs;
+        return R.raw.stage3_mergelayer_fs;
     }
 
     @Override
