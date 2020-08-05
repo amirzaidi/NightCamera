@@ -22,7 +22,8 @@ uniform ivec2 frameSize;
 out int result;
 
 bool isInLimits(ivec2 xy) {
-    return xy.x >= 0 && xy.y >= 0 && xy.x < frameSize.x && xy.y < frameSize.y;
+    return true;
+    //return xy.x >= 0 && xy.y >= 0 && xy.x < frameSize.x && xy.y < frameSize.y;
 }
 
 ivec4[2] getOffsets(ivec2 xy) {
@@ -32,7 +33,7 @@ ivec4[2] getOffsets(ivec2 xy) {
 
     // Divide by TILE_SIZE, so we select the alignments for the current tile.
     ivec2 xyTileDiv = xy / TILE_SIZE;
-    ivec2 xyTileMod = xy % TILE_SIZE;
+    /*ivec2 xyTileMod = xy % TILE_SIZE;
     vec2 xyTileInterp = vec2(float(xyTileMod.x), float(xyTileMod.y));
     vec2 xyTileInterpFactor = xyTileInterp / float(TILE_SIZE) - 0.5f; // [-0.5, 0.5]
 
@@ -40,9 +41,20 @@ ivec4[2] getOffsets(ivec2 xy) {
     xyTileInterpFactorCos.x = int(cos(M_PI * xyTileInterpFactor.x) * float(COS_INT_RES));
     xyTileInterpFactorCos.y = int(cos(M_PI * xyTileInterpFactor.y) * float(COS_INT_RES));
 
+    if (xyTileInterpFactorCos.x < 0 || xyTileInterpFactorCos.x > 128) {
+        offsets[0] = ivec4(99999);
+        offsets[1] = ivec4(99999);
+        return offsets;
+    }
+    if (xyTileInterpFactorCos.y < 0 || xyTileInterpFactorCos.y > 128) {
+        offsets[0] = ivec4(-99999);
+        offsets[1] = ivec4(-99999);
+        return offsets;
+    }*/
+
     // Which other tiles to sample.
-    int dx = xyTileInterpFactor.x < 0.f ? -1 : 1;
-    int dy = xyTileInterpFactor.y < 0.f ? -1 : 1;
+    //int dx = xyTileInterpFactor.x < 0.f ? -1 : 1;
+    //int dy = xyTileInterpFactor.y < 0.f ? -1 : 1;
 
     xyAlign = texelFetch(alignment, xyTileDiv, 0);
     ivec4 xAlignMid = (ivec4(xyAlign % 256u) - 128);
@@ -78,7 +90,7 @@ ivec4[2] getOffsets(ivec2 xy) {
         + (COS_INT_RES - xyTileInterpFactorCos.y) * xAlignVertCorner) / COS_INT_RES;
     offsets[1] = (xyTileInterpFactorCos.y * yAlignMidHorz
         + (COS_INT_RES - xyTileInterpFactorCos.y) * yAlignVertCorner) / COS_INT_RES;
-        */
+    */
 
     // Bypass.
     offsets[0] = xAlignMid;
@@ -134,15 +146,13 @@ void main() {
         }
     }
 
-    /*
     uint pxSum = 0u;
     for (int i = 0; i < p; i++) {
         pxSum += px[i];
     }
-    return int(pxSum) / p;
-    //*/
+    result = int(pxSum) / p;
 
-    //*
+    /*
 
     // Smart median.
     for (int i = 1; i < p; i++) {
@@ -162,4 +172,6 @@ void main() {
         // Rounding down of integer division, count 3 -> index 1.
         result = int(px[p / 2]);
     }
+
+    */
 }

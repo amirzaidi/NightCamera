@@ -62,7 +62,9 @@ void main() {
 
                     // All frame data is loaded, compare reference frame with other frames.
                     // Linear noise model.
-                    currXYNoise += vec4(abs(ivec4(altDataVal) - int(refDataVal)));
+                    uvec4 noise = max(altDataVal, refDataVal) - min(altDataVal, refDataVal);
+                    vec4 noisef = vec4(noise.x, noise.y, noise.z, noise.w);
+                    currXYNoise += noisef;
                 }
             }
 
