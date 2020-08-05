@@ -2,6 +2,10 @@
 
 #define TILE_SIZE 8
 
+// From 8 to 16 diff per pixel.
+#define MIN_NOISE 512.f
+#define MAX_NOISE 1024.f
+
 precision mediump float;
 
 uniform sampler2D refFrame;
@@ -41,5 +45,5 @@ void main() {
         }
     }
 
-    result = currXYNoise;
+    result = 1.f - smoothstep(MIN_NOISE, MAX_NOISE, currXYNoise);
 }

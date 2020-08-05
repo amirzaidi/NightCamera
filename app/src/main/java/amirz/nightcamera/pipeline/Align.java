@@ -224,7 +224,7 @@ public class Align extends Stage {
     }
 
     private void DEBUG(TexPyramid pyramid) {
-        final boolean DEBUG = true;
+        final boolean DEBUG = false;
         if (DEBUG) {
             Texture tex = pyramid.mLargeWeights;
             int w = tex.getWidth();

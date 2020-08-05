@@ -43,6 +43,9 @@ public class Merge extends Stage {
         converter.seti("alignment", 2 * images.size());
         align.getAlign().bind(GL_TEXTURE0 + 2 * images.size());
 
+        converter.seti("alignmentWeight", 2 * (images.size() + 1));
+        align.getWeights().bind(GL_TEXTURE0 + 2 * (images.size() + 1));
+
         mTexture = new Texture(size[0], size[1], 1, Texture.Format.UInt16, null);
         mTexture.setFrameBuffer();
     }

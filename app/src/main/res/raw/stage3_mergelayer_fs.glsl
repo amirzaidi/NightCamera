@@ -14,6 +14,7 @@ uniform usampler2D altFrame3;
 uniform usampler2D altFrame4;
 uniform usampler2D refFrame;
 uniform usampler2D alignment;
+uniform sampler2D alignmentWeight;
 uniform int alignCount;
 
 uniform ivec2 frameSize;
@@ -21,6 +22,7 @@ uniform ivec2 frameSize;
 // Out
 out int result;
 
+/*
 ivec4[2] getOffsets(ivec2 xy) {
     uvec4 xyAlign;
     ivec4 xAlign, yAlign;
@@ -28,7 +30,7 @@ ivec4[2] getOffsets(ivec2 xy) {
 
     // Divide by TILE_SIZE, so we select the alignments for the current tile.
     ivec2 xyTileDiv = xy / TILE_SIZE;
-    /*ivec2 xyTileMod = xy % TILE_SIZE;
+    ivec2 xyTileMod = xy % TILE_SIZE;
     vec2 xyTileInterp = vec2(float(xyTileMod.x), float(xyTileMod.y));
     vec2 xyTileInterpFactor = xyTileInterp / float(TILE_SIZE) - 0.5f; // [-0.5, 0.5]
 
@@ -45,7 +47,7 @@ ivec4[2] getOffsets(ivec2 xy) {
         offsets[0] = ivec4(-99999);
         offsets[1] = ivec4(-99999);
         return offsets;
-    }*/
+    }
 
     // Which other tiles to sample.
     //int dx = xyTileInterpFactor.x < 0.f ? -1 : 1;
@@ -55,7 +57,6 @@ ivec4[2] getOffsets(ivec2 xy) {
     ivec4 xAlignMid = (ivec4(xyAlign % 256u) - 128);
     ivec4 yAlignMid = (ivec4(xyAlign / 256u) - 128);
 
-    /*
     xyAlign = texelFetch(alignment, xyTileDiv + ivec2(dx, 0), 0);
     ivec4 xAlignHorz = (ivec4(xyAlign % 256u) - 128);
     ivec4 yAlignHorz = (ivec4(xyAlign / 256u) - 128);
@@ -85,7 +86,6 @@ ivec4[2] getOffsets(ivec2 xy) {
         + (COS_INT_RES - xyTileInterpFactorCos.y) * xAlignVertCorner) / COS_INT_RES;
     offsets[1] = (xyTileInterpFactorCos.y * yAlignMidHorz
         + (COS_INT_RES - xyTileInterpFactorCos.y) * yAlignVertCorner) / COS_INT_RES;
-    */
 
     // Bypass.
     offsets[0] = xAlignMid;
@@ -97,68 +97,57 @@ ivec4[2] getOffsets(ivec2 xy) {
 
     return offsets;
 }
+*/
 
 void main() {
     // Shift coords from optimized to real
     ivec2 xy = ivec2(gl_FragCoord.xy);
-    uint px[MAX_FRAME_COUNT], tmp;
+
+    ivec2 xyTileDiv = xy / TILE_SIZE;
+    uvec4 xyAlign = texelFetch(alignment, xyTileDiv, 0);
+    vec4 xyAlignWeight = texelFetch(alignmentWeight, xyTileDiv, 0);
+    ivec4 xAlign = (ivec4(xyAlign % 256u) - 128) * 2;
+    ivec4 yAlign = (ivec4(xyAlign / 256u) - 128) * 2;
+
+    float px = float(texelFetch(refFrame, xy, 0).x);
+    float pxWeight = 1.f;
+
     ivec2 xyAligned;
+    uint val;
+    float weight;
 
-    ivec4[2] xyAlign = getOffsets(xy);
-    ivec4 xAlign = xyAlign[0];
-    ivec4 yAlign = xyAlign[1];
-
-    px[0] = texelFetch(refFrame, xy, 0).x;
-    int p = 1;
-
-    //return int(px[0]);
-
+    // Same code but for x, y, z, w.
     if (alignCount >= 1) {
         xyAligned = xy + ivec2(xAlign.x, yAlign.x);
-        px[p++] = texelFetch(altFrame1, xyAligned, 0).x;
+        val = texelFetch(altFrame1, xyAligned, 0).x;
+        weight = xyAlignWeight.x;
+        px += weight * float(val);
+        pxWeight += weight;
     }
 
     if (alignCount >= 2) {
         xyAligned = xy + ivec2(xAlign.y, yAlign.y);
-        px[p++] = texelFetch(altFrame2, xyAligned, 0).x;
+        val = texelFetch(altFrame2, xyAligned, 0).x;
+        weight = xyAlignWeight.y;
+        px += weight * float(val);
+        pxWeight += weight;
     }
 
     if (alignCount >= 3) {
         xyAligned = xy + ivec2(xAlign.z, yAlign.z);
-        px[p++] = texelFetch(altFrame3, xyAligned, 0).x;
+        val = texelFetch(altFrame3, xyAligned, 0).x;
+        weight = xyAlignWeight.z;
+        px += weight * float(val);
+        pxWeight += weight;
     }
 
     if (alignCount >= 4) {
         xyAligned = xy + ivec2(xAlign.w, yAlign.w);
-        px[p++] = texelFetch(altFrame4, xyAligned, 0).x;
+        val = texelFetch(altFrame4, xyAligned, 0).x;
+        weight = xyAlignWeight.w;
+        px += weight * float(val);
+        pxWeight += weight;
     }
 
-    uint pxSum = 0u;
-    for (int i = 0; i < p; i++) {
-        pxSum += px[i];
-    }
-    result = int(pxSum) / p;
-
-    /*
-
-    // Smart median.
-    for (int i = 1; i < p; i++) {
-        for (int j = i - 1; j >= 0; j--) {
-            if (px[j] > px[i]) {
-                tmp = px[i];
-                px[i] = px[j];
-                px[j] = tmp;
-            }
-        }
-    }
-
-    if (p % 2 == 0) {
-        // Multiple of 2, so average the middle two, count 4 -> index 1, 2.
-        result = int(px[(p / 2) - 1] + px[p / 2]) / 2;
-    } else {
-        // Rounding down of integer division, count 3 -> index 1.
-        result = int(px[p / 2]);
-    }
-
-    */
+    result = int(px / pxWeight);
 }
