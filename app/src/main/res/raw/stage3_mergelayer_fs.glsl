@@ -112,44 +112,30 @@ void main() {
     float px = float(texelFetch(refFrame, xy, 0).x);
     float pxWeight = 1.f;
 
-    ivec2 xyAligned;
-    uint val;
     float weight;
-    ivec2 iTileCoords = xy - xyTileDiv*TILE_SIZE;
-    vec2 TileCoords = vec2(iTileCoords);
-    TileCoords*=1.0/float(TILE_SIZE);
-    //From 0.0 to 1.0 for cosin
+    uint val;
 
-    float cosw = cos(TileCoords.x + TileCoords.y);
     // Same code but for x, y, z, w.
-    if (alignCount >= 1) {
-        xyAligned = xy + ivec2(xAlign.x, yAlign.x);
-        val = texelFetch(altFrame1, xyAligned, 0).x;
-        weight = xyAlignWeight.x*cosw;
-        px += weight * float(val);
-        pxWeight += weight;
-    }
+    for (int i = 1; i <= alignCount; i++) {
+        switch (i) {
+            case 1:
+                val = texelFetch(altFrame1, xy + ivec2(xAlign.x, yAlign.x), 0).x;
+                weight = xyAlignWeight.x;
+                break;
+            case 2:
+                val = texelFetch(altFrame2, xy + ivec2(xAlign.y, yAlign.y), 0).x;
+                weight = xyAlignWeight.y;
+                break;
+            case 3:
+                val = texelFetch(altFrame3, xy + ivec2(xAlign.z, yAlign.z), 0).x;
+                weight = xyAlignWeight.z;
+                break;
+            case 4:
+                val = texelFetch(altFrame4, xy + ivec2(xAlign.w, yAlign.w), 0).x;
+                weight = xyAlignWeight.w;
+                break;
+        }
 
-    if (alignCount >= 2) {
-        xyAligned = xy + ivec2(xAlign.y, yAlign.y);
-        val = texelFetch(altFrame2, xyAligned, 0).x;
-        weight = xyAlignWeight.y*cosw;
-        px += weight * float(val);
-        pxWeight += weight;
-    }
-
-    if (alignCount >= 3) {
-        xyAligned = xy + ivec2(xAlign.z, yAlign.z);
-        val = texelFetch(altFrame3, xyAligned, 0).x;
-        weight = xyAlignWeight.z*cosw;
-        px += weight * float(val);
-        pxWeight += weight;
-    }
-
-    if (alignCount >= 4) {
-        xyAligned = xy + ivec2(xAlign.w, yAlign.w);
-        val = texelFetch(altFrame4, xyAligned, 0).x;
-        weight = xyAlignWeight.w*cosw;
         px += weight * float(val);
         pxWeight += weight;
     }
