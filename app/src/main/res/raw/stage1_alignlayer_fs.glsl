@@ -1,6 +1,7 @@
 #version 300 es
 
 #define FLT_MAX 3.402823466e+38
+#define M_PI 3.1415926535897932384626433832795f
 
 #define TILE_SIZE 8
 #define TILE_PX_COUNT 256
@@ -22,10 +23,66 @@ void main() {
     ivec2 xy = ivec2(gl_FragCoord.xy);
     ivec4 xAlign = ivec4(0);
     ivec4 yAlign = ivec4(0);
+
+    // This massive blob of code is to interpolate starting position for the tiles when sampling up.
     if (prevLayerScale > 0) {
-        uvec4 xyAlign = texelFetch(prevLayerAlign, xy / 4, 0);
-        xAlign = (ivec4(xyAlign % 256u) - 128) * prevLayerScale;
-        yAlign = (ivec4(xyAlign / 256u) - 128) * prevLayerScale;
+        uvec4 xyAlign;
+
+        ivec2 xyTileDiv = xy / prevLayerScale;
+        //ivec2 xyTileMod = xy % prevLayerScale;
+        //vec2 xyTileInterp = vec2(float(xyTileMod.x), float(xyTileMod.y));
+        //vec2 xyTileInterpFactor = xyTileInterp / float(prevLayerScale) - 0.5f; // [-0.5, 0.5]
+
+        // Cosine interpolate the edges of the tile when upsampling.
+        //ivec2 xyTileInterpFactorCos; // -0.5 -> 0, 0 -> 256, 0.5 -> 0
+        //xyTileInterpFactorCos.x = int(cos(M_PI * xyTileInterpFactor.x) * 256.f);
+        //xyTileInterpFactorCos.y = int(cos(M_PI * xyTileInterpFactor.y) * 256.f);
+
+        // Which other tiles to sample.
+        //int dx = xyTileInterpFactor.x < 0.f ? -1 : 1;
+        //int dy = xyTileInterpFactor.y < 0.f ? -1 : 1;
+
+        //if (xyTileDiv.x + dx < 0) dx = 0;
+        //if (xyTileDiv.y + dy < 0) dy = 0;
+
+        xyAlign = texelFetch(prevLayerAlign, xyTileDiv, 0);
+        ivec4 xAlignMid = (ivec4(xyAlign % 256u) - 128) * prevLayerScale;
+        ivec4 yAlignMid = (ivec4(xyAlign / 256u) - 128) * prevLayerScale;
+
+        /*
+        xyAlign = texelFetch(prevLayerAlign, xyTileDiv + ivec2(dx, 0), 0);
+        ivec4 xAlignHorz = (ivec4(xyAlign % 256u) - 128) * prevLayerScale;
+        ivec4 yAlignHorz = (ivec4(xyAlign / 256u) - 128) * prevLayerScale;
+
+        // Horizontally interpolate the middle row.
+        ivec4 xAlignMidHorz = (xyTileInterpFactorCos.x * xAlignMid
+            + (256 - xyTileInterpFactorCos.x) * xAlignHorz) / 256;
+        ivec4 yAlignMidHorz = (xyTileInterpFactorCos.x * yAlignMid
+            + (256 - xyTileInterpFactorCos.x) * yAlignHorz) / 256;
+
+        xyAlign = texelFetch(prevLayerAlign, xyTileDiv + ivec2(0, dy), 0);
+        ivec4 xAlignVert = (ivec4(xyAlign % 256u) - 128) * prevLayerScale;
+        ivec4 yAlignVert = (ivec4(xyAlign / 256u) - 128) * prevLayerScale;
+
+        xyAlign = texelFetch(prevLayerAlign, xyTileDiv + ivec2(dx, dy), 0);
+        ivec4 xAlignCorner = (ivec4(xyAlign % 256u) - 128) * prevLayerScale;
+        ivec4 yAlignCorner = (ivec4(xyAlign / 256u) - 128) * prevLayerScale;
+
+        // Horizontally interpolate the other row.
+        ivec4 xAlignVertCorner = (xyTileInterpFactorCos.x * xAlignVert
+            + (256 - xyTileInterpFactorCos.x) * xAlignCorner) / 256;
+        ivec4 yAlignVertCorner = (xyTileInterpFactorCos.x * yAlignVert
+            + (256 - xyTileInterpFactorCos.x) * yAlignCorner) / 256;
+
+        // Vertically interpolate between the two rows.
+        xAlign = (xyTileInterpFactorCos.y * xAlignMidHorz
+            + (256 - xyTileInterpFactorCos.y) * xAlignVertCorner) / 256;
+        yAlign = (xyTileInterpFactorCos.y * yAlignMidHorz
+            + (256 - xyTileInterpFactorCos.y) * yAlignVertCorner) / 256;
+        */
+
+        xAlign = xAlignMid;
+        yAlign = yAlignMid;
     }
 
     ivec2 xyFrame = xy * TILE_SIZE;
