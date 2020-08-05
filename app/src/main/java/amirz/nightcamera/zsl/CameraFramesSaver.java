@@ -79,7 +79,13 @@ public abstract class CameraFramesSaver extends CameraCaptureSession.CaptureCall
 
     @Override
     public synchronized void onImageAvailable(ImageReader imageReader) {
-        Image img = imageReader.acquireNextImage();
+        Image img;
+        try {
+            img = imageReader.acquireNextImage();
+        } catch (IllegalStateException e) {
+            return;
+        }
+
         if (img != null) {
             long stamp = img.getTimestamp();
             for (ImageData temp : tempResults) {
