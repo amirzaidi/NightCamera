@@ -1,5 +1,8 @@
 #version 300 es
 
+#define RB_WEIGHT 0.325f
+#define GG_WEIGHT 0.675f
+
 precision lowp float;
 
 uniform usampler2D frame1;
@@ -30,6 +33,6 @@ void main() {
     vec2 val4 = getValForTex(frame4, xy);
 
     // Add weights using CFA later.
-    result = 0.5f * vec4(val1.x, val2.x, val3.x, val4.x)
-        + 0.5f * vec4(val1.y, val2.y, val3.y, val4.y);
+    result = RB_WEIGHT * vec4(val1.x, val2.x, val3.x, val4.x)
+        + GG_WEIGHT * vec4(val1.y, val2.y, val3.y, val4.y);
 }

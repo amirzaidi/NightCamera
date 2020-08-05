@@ -1,5 +1,8 @@
 #version 300 es
 
+#define RB_WEIGHT 0.325f
+#define GG_WEIGHT 0.675f
+
 precision lowp float;
 
 uniform usampler2D frame;
@@ -20,6 +23,6 @@ void main() {
     );
 
     // Add weights using CFA later.
-    result = 0.5f * topLeftAndBottomRight
-        + 0.5f * topRightAndBottomLeft;
+    result = RB_WEIGHT * topLeftAndBottomRight
+        + GG_WEIGHT * topRightAndBottomLeft;
 }
