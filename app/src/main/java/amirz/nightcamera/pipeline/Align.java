@@ -22,7 +22,7 @@ public class Align extends Stage {
     private final int mWidth, mHeight;
     private final Texture.Config mConfig;
     private final List<Texture> mTextures = new ArrayList<>();
-    private Texture mAlign;
+    private Texture mAlign, mWeights;
 
     Align(List<ImageData> images, int width, int height) {
         mImages = images;
@@ -46,16 +46,21 @@ public class Align extends Stage {
         return mAlign;
     }
 
-    private class TexPyramid implements AutoCloseable {
+    Texture getWeights() {
+        return mWeights;
+    }
+
+    private class TexPyramid {
         private static final int DOWNSAMPLE_SCALE = 4;
         private static final int TILE_SIZE = 8;
         private static final int BH = 1;
 
-        private final Texture mLargeResRef, mMidResRef, mSmallResRef;
+        private Texture mLargeResRef, mMidResRef, mSmallResRef;
         private Texture mLargeRes, mMidRes, mSmallRes;
         private Texture mSmallAlign, mMidAlign, mLargeAlign;
+        private Texture mLargeWeights;
 
-        private TexPyramid() {
+        private void downsample() {
             GLPrograms converter = getConverter();
 
             Texture refTex = mTextures.get(0);
@@ -148,14 +153,6 @@ public class Align extends Stage {
                     mSmallRes.getHeight() / TILE_SIZE + 1, 4,
                     Texture.Format.UInt16, null);
 
-            mMidAlign = new Texture(mMidRes.getWidth() / TILE_SIZE + 1,
-                    mMidRes.getHeight() / TILE_SIZE + 1, 4,
-                    Texture.Format.UInt16, null);
-
-            mLargeAlign = new Texture(mLargeRes.getWidth() / TILE_SIZE + 1,
-                    mLargeRes.getHeight() / TILE_SIZE + 1, 4,
-                    Texture.Format.UInt16, null);
-
             converter.seti("refFrame", 0);
             converter.seti("altFrame", 2);
             converter.seti("prevLayerAlign", 4);
@@ -167,6 +164,14 @@ public class Align extends Stage {
             // No PrevAlign on GL_TEXTURE2
             converter.drawBlocks(mSmallAlign, BH);
 
+            // Close resources.
+            mSmallResRef.close();
+            mSmallRes.close();
+
+            mMidAlign = new Texture(mMidRes.getWidth() / TILE_SIZE + 1,
+                    mMidRes.getHeight() / TILE_SIZE + 1, 4,
+                    Texture.Format.UInt16, null);
+
             // Enable previous layers from here.
             converter.seti("prevLayerScale", 4);
 
@@ -176,26 +181,66 @@ public class Align extends Stage {
             mSmallAlign.bind(GL_TEXTURE4);
             converter.drawBlocks(mMidAlign, BH);
 
+            // Close resources.
+            mMidResRef.close();
+            mMidRes.close();
+            mSmallAlign.close();
+
+            mLargeAlign = new Texture(mLargeRes.getWidth() / TILE_SIZE + 1,
+                    mLargeRes.getHeight() / TILE_SIZE + 1, 4,
+                    Texture.Format.UInt16, null);
+
             mLargeResRef.bind(GL_TEXTURE0);
             mLargeRes.bind(GL_TEXTURE2);
             converter.seti("bounds", mLargeRes.getWidth(), mLargeRes.getHeight());
             mMidAlign.bind(GL_TEXTURE4);
             converter.drawBlocks(mLargeAlign, BH);
+
+            // Close resources.
+            mMidAlign.close();
         }
 
-        @Override
-        public void close() {
+        private void weigh() {
+            GLPrograms converter = getConverter();
+            converter.useProgram(R.raw.stage2_weightiles_fs);
+
+            mLargeWeights = new Texture(mLargeAlign.getWidth(), mLargeAlign.getHeight(), 4,
+                    Texture.Format.Float16, null);
+
+            converter.seti("refFrame", 0);
+            converter.seti("altFrame", 2);
+            converter.seti("alignment", 4);
+
+            mLargeResRef.bind(GL_TEXTURE0);
+            mLargeRes.bind(GL_TEXTURE2);
+            mLargeAlign.bind(GL_TEXTURE4);
+
+            converter.drawBlocks(mLargeWeights);
+
+            // Close resources.
             mLargeResRef.close();
-            mMidResRef.close();
-            mSmallRes.close();
-
             mLargeRes.close();
-            mMidRes.close();
-            mSmallRes.close();
+        }
+    }
 
-            mSmallAlign.close();
-            mMidAlign.close();
-            // Keep mLargeAlign.
+    private void DEBUG(TexPyramid pyramid) {
+        final boolean DEBUG = true;
+        if (DEBUG) {
+            Texture tex = pyramid.mLargeWeights;
+            int w = tex.getWidth();
+            int h = tex.getHeight();
+
+            ByteBuffer buffer = ByteBuffer.allocateDirect(w * h * 4 * 4);
+            float[] floats = new float[w * h * 4];
+            //int[] uints = new int[w * h * 4];
+
+            // Extract floats
+            glReadPixels(0, 0, w, h, GL_RGBA, GL_FLOAT, buffer);
+            //glReadPixels(0, 0, w, h, GL_RGBA_INTEGER, GL_UNSIGNED_INT, buffer);
+            buffer.position(0);
+            buffer.order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(floats);
+            //buffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(uints);
+            Log.d("Align", "Test " + glGetError());
         }
     }
 
@@ -217,36 +262,31 @@ public class Align extends Stage {
                 mTextures.add(in);
             }
 
+            TexPyramid pyramid = new TexPyramid();
             long startTime = System.currentTimeMillis();
-            try (TexPyramid pyramid = new TexPyramid()) {
-                final boolean DEBUG = false;
-                if (DEBUG) {
-                    Texture tex = pyramid.mMidResRef;
-                    int w = tex.getWidth();
-                    int h = tex.getHeight();
 
-                    ByteBuffer buffer = ByteBuffer.allocateDirect(w * h * 4 * 4);
-                    int[] uints = new int[w * h * 4];
+            pyramid.downsample();
+            long subSampleTime = System.currentTimeMillis();
+            long timeSpan = subSampleTime - startTime;
+            Log.d("Align", "Downsample time " + timeSpan + "ms");
+            // 50ms
 
-                    // Extract floats
-                    glReadPixels(0, 0, w, h, GL_RGBA_INTEGER, GL_UNSIGNED_INT, buffer);
-                    buffer.position(0);
-                    buffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(uints);
-                    Log.d("Align", "Test " + glGetError());
-                }
+            pyramid.align();
+            long alignTime = System.currentTimeMillis();
+            timeSpan = alignTime - subSampleTime;
+            Log.d("Align", "Align time " + timeSpan + "ms");
+            // 2000ms
 
-                long subSampleTime = System.currentTimeMillis();
-                long timeSpan = subSampleTime - startTime;
-                // 54ms on non-debug mode
-                Log.d("Align", "Downsample time " + timeSpan + "ms");
+            pyramid.weigh();
+            long weighTime = System.currentTimeMillis();
+            timeSpan = weighTime - alignTime;
+            Log.d("Align", "Weigh time " + timeSpan + "ms");
+            // ?
 
-                pyramid.align();
-                long alignTime = System.currentTimeMillis();
-                timeSpan = alignTime - subSampleTime;
-                Log.d("Align", "Align time " + timeSpan + "ms");
+            DEBUG(pyramid);
 
-                mAlign = pyramid.mLargeAlign;
-            }
+            mAlign = pyramid.mLargeAlign;
+            mWeights = pyramid.mLargeWeights;
         }
     }
 
