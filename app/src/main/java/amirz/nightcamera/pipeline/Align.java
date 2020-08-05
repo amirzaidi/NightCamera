@@ -238,12 +238,12 @@ public class Align extends Stage {
                 long subSampleTime = System.currentTimeMillis();
                 long timeSpan = subSampleTime - startTime;
                 // 54ms on non-debug mode
-                Log.d("Align", "Downsample time " + timeSpan / 1000f + "s");
+                Log.d("Align", "Downsample time " + timeSpan + "ms");
 
                 pyramid.align();
                 long alignTime = System.currentTimeMillis();
                 timeSpan = alignTime - subSampleTime;
-                Log.d("Align", "Align time " + timeSpan / 1000f + "s");
+                Log.d("Align", "Align time " + timeSpan + "ms");
 
                 mAlign = pyramid.mLargeAlign;
             }
