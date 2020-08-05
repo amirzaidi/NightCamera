@@ -2,8 +2,9 @@
 
 #define TILE_SIZE 8
 
-#define MIN_NOISE 500.f
-#define MAX_NOISE 750.f
+#define MIN_PIXEL_NOISE 8.f
+#define MIN_NOISE 150.f
+#define MAX_NOISE 300.f
 
 precision mediump float;
 
@@ -39,7 +40,7 @@ void main() {
 
             // All frame data is loaded, compare reference frame with other frames.
             // Linear noise model.
-            noisef = abs(altDataVal - refDataVal);
+            noisef = max(vec4(0.f), abs(altDataVal - refDataVal) - MIN_PIXEL_NOISE);
             currXYNoise += noisef;
         }
     }
