@@ -38,36 +38,40 @@ void main() {
     ivec4 bestXShift, bestYShift;
     vec4 bestXYNoise = vec4(FLT_MAX);
 
+    int shiftedY, shiftedX;
+    bool isYInCache;
+    float refDataVal;
+    vec4 altDataVal;
+    ivec2 xyRef;
+    vec4 noisef;
+
     for (int dY = -ALIGN_MAX_SHIFT; dY <= ALIGN_MAX_SHIFT; dY++) {
         for (int dX = -ALIGN_MAX_SHIFT; dX <= ALIGN_MAX_SHIFT; dX++) {
             vec4 currXYNoise = vec4(0.f);
 
             // Iterate over refData, processing all altData frames simultaneously.
             for (int y = 0; y < TILE_SIZE; y++) {
-                int shiftedY = y + dY;
-                //bool isYInCache = shiftedY >= 0 && shiftedY < TILE_SIZE;
+                shiftedY = y + dY;
                 for (int x = 0; x < TILE_SIZE; x++) {
                     // RefData is always in cache.
-                    float refDataVal = refData[y * TILE_SIZE + x];
-                    int shiftedX = x + dX;
-                    ivec2 xyRef = xyFrame + ivec2(shiftedX, shiftedY);
+                    refDataVal = refData[y * TILE_SIZE + x];
+                    shiftedX = x + dX;
 
-                    // Do a very slow texelFetch.
-                    vec4 altDataVal = vec4(
-                        texelFetch(altFrame, xyRef + ivec2(xAlign.x, yAlign.x), 0).x,
-                        texelFetch(altFrame, xyRef + ivec2(xAlign.y, yAlign.y), 0).y,
-                        texelFetch(altFrame, xyRef + ivec2(xAlign.z, yAlign.z), 0).z,
-                        texelFetch(altFrame, xyRef + ivec2(xAlign.w, yAlign.w), 0).w
-                    );
+                    // Do a slow texelFetch.
+                    xyRef = xyFrame + ivec2(shiftedX, shiftedY);
+                    altDataVal.x = texelFetch(altFrame, xyRef + ivec2(xAlign.x, yAlign.x), 0).x;
+                    altDataVal.y = texelFetch(altFrame, xyRef + ivec2(xAlign.y, yAlign.y), 0).y;
+                    altDataVal.z = texelFetch(altFrame, xyRef + ivec2(xAlign.z, yAlign.z), 0).z;
+                    altDataVal.w = texelFetch(altFrame, xyRef + ivec2(xAlign.w, yAlign.w), 0).w;
 
                     // All frame data is loaded, compare reference frame with other frames.
                     // Linear noise model.
-                    vec4 noisef = abs(altDataVal - refDataVal);
+                    noisef = abs(altDataVal - refDataVal);
                     currXYNoise += noisef;
                 }
             }
 
-            // Manually update the three frames' best shift.
+            // Manually update the four frames' best shift.
             if (currXYNoise.x < bestXYNoise.x) {
                 bestXYNoise.x = currXYNoise.x;
                 bestXShift.x = dX;
@@ -91,6 +95,7 @@ void main() {
         }
     }
 
+    // Vectorizing this mathematical operation seems to create bugs.
     result = 256u * uvec4(
         uint(yAlign.x + bestYShift.x + 128),
         uint(yAlign.y + bestYShift.y + 128),
