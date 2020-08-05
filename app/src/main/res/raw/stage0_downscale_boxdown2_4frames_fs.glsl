@@ -32,5 +32,5 @@ void main() {
     val4 += texelFetch(frame4, xy + ivec2(0, 1), 0).x;
     val4 += texelFetch(frame4, xy + ivec2(1, 1), 0).x;
 
-    result = uvec4(val1, val2, val3, val4) / 4u;
+    result = uvec4(val1, val2, val3, val4);
 }
