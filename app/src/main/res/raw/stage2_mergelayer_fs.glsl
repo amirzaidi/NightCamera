@@ -3,6 +3,9 @@
 #define MAX_FRAME_COUNT 5
 #define TILE_SIZE 16
 
+#define COS_INT_RES 128
+#define M_PI 3.1415926535897932384626433832795f
+
 precision mediump float;
 
 uniform usampler2D altFrame1;
@@ -23,27 +26,67 @@ bool isInLimits(ivec2 xy) {
 }
 
 ivec4[2] getOffsets(ivec2 xy) {
+    uvec4 xyAlign;
+    ivec4 xAlign, yAlign;
     ivec4 offsets[2];
 
     // Divide by TILE_SIZE, so we select the alignments for the current tile.
     ivec2 xyTileDiv = xy / TILE_SIZE;
-    //ivec2 xyTileMod = xy % TILE_SIZE;
-    //vec2 xyTileInterp = vec2(float(xyTileMod.x), float(xyTileMod.y));
-    //vec2 xyTileInterpFactor = xyTileInterp / float(TILE_SIZE) - 0.5f; // [-0.5, 0.5]
+    ivec2 xyTileMod = xy % TILE_SIZE;
+    vec2 xyTileInterp = vec2(float(xyTileMod.x), float(xyTileMod.y));
+    vec2 xyTileInterpFactor = xyTileInterp / float(TILE_SIZE) - 0.5f; // [-0.5, 0.5]
 
-    //ivec2 xyTileInterpFactorCos; // -0.5 -> 0, 0 -> 256, 0.5 -> 0
-    //xyTileInterpFactorCos.x = int(cos(M_PI * xyTileInterpFactor.x) * 256.f);
-    //xyTileInterpFactorCos.y = int(cos(M_PI * xyTileInterpFactor.y) * 256.f);
+    ivec2 xyTileInterpFactorCos; // -0.5 -> 0, 0 -> 128, 0.5 -> 0
+    xyTileInterpFactorCos.x = int(cos(M_PI * xyTileInterpFactor.x) * float(COS_INT_RES));
+    xyTileInterpFactorCos.y = int(cos(M_PI * xyTileInterpFactor.y) * float(COS_INT_RES));
 
-    // Simple align.
-    uvec4 xyAlign = texelFetch(alignment, xyTileDiv, 0);
+    // Which other tiles to sample.
+    int dx = xyTileInterpFactor.x < 0.f ? -1 : 1;
+    int dy = xyTileInterpFactor.y < 0.f ? -1 : 1;
+
+    xyAlign = texelFetch(alignment, xyTileDiv, 0);
+    ivec4 xAlignMid = (ivec4(xyAlign % 256u) - 128);
+    ivec4 yAlignMid = (ivec4(xyAlign / 256u) - 128);
+
+    /*
+    xyAlign = texelFetch(alignment, xyTileDiv + ivec2(dx, 0), 0);
+    ivec4 xAlignHorz = (ivec4(xyAlign % 256u) - 128);
+    ivec4 yAlignHorz = (ivec4(xyAlign / 256u) - 128);
+
+    // Horizontally interpolate the middle row.
+    ivec4 xAlignMidHorz = (xyTileInterpFactorCos.x * xAlignMid
+        + (COS_INT_RES - xyTileInterpFactorCos.x) * xAlignHorz) / COS_INT_RES;
+    ivec4 yAlignMidHorz = (xyTileInterpFactorCos.x * yAlignMid
+        + (COS_INT_RES - xyTileInterpFactorCos.x) * yAlignHorz) / COS_INT_RES;
+
+    xyAlign = texelFetch(alignment, xyTileDiv + ivec2(0, dy), 0);
+    ivec4 xAlignVert = (ivec4(xyAlign % 256u) - 128);
+    ivec4 yAlignVert = (ivec4(xyAlign / 256u) - 128);
+
+    xyAlign = texelFetch(alignment, xyTileDiv + ivec2(dx, dy), 0);
+    ivec4 xAlignCorner = (ivec4(xyAlign % 256u) - 128);
+    ivec4 yAlignCorner = (ivec4(xyAlign / 256u) - 128);
+
+    // Horizontally interpolate the other row.
+    ivec4 xAlignVertCorner = (xyTileInterpFactorCos.x * xAlignVert
+        + (COS_INT_RES - xyTileInterpFactorCos.x) * xAlignCorner) / COS_INT_RES;
+    ivec4 yAlignVertCorner = (xyTileInterpFactorCos.x * yAlignVert
+        + (COS_INT_RES - xyTileInterpFactorCos.x) * yAlignCorner) / COS_INT_RES;
+
+    // Vertically interpolate between the two rows.
+    offsets[0] = (xyTileInterpFactorCos.y * xAlignMidHorz
+        + (COS_INT_RES - xyTileInterpFactorCos.y) * xAlignVertCorner) / COS_INT_RES;
+    offsets[1] = (xyTileInterpFactorCos.y * yAlignMidHorz
+        + (COS_INT_RES - xyTileInterpFactorCos.y) * yAlignVertCorner) / COS_INT_RES;
+        */
+
+    // Bypass.
+    offsets[0] = xAlignMid;
+    offsets[1] = yAlignMid;
 
     // Multiply by two, as we used a 2x boxdowned grayscale image.
-    ivec4 xAlign = (ivec4(xyAlign % 256u) - 128) * 2;
-    ivec4 yAlign = (ivec4(xyAlign / 256u) - 128) * 2;
-
-    offsets[0] = xAlign;
-    offsets[1] = yAlign;
+    offsets[0] *= 2;
+    offsets[1] *= 2;
 
     return offsets;
 }
