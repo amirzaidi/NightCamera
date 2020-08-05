@@ -9,8 +9,8 @@
 
 precision mediump float;
 
-uniform usampler2D refFrame;
-uniform usampler2D altFrame;
+uniform sampler2D refFrame;
+uniform sampler2D altFrame;
 uniform ivec2 bounds;
 
 uniform usampler2D prevLayerAlign;
@@ -29,7 +29,7 @@ void main() {
     }
 
     ivec2 xyFrame = xy * TILE_SIZE;
-    uint refData[TILE_PX_COUNT];
+    float refData[TILE_PX_COUNT];
     for (int i = 0; i < TILE_PX_COUNT; i++) {
         ivec2 xyRef = xyFrame + ivec2(i % TILE_SIZE, i / TILE_SIZE);
         refData[i] = texelFetch(refFrame, xyRef, 0).x;
@@ -48,12 +48,12 @@ void main() {
                 //bool isYInCache = shiftedY >= 0 && shiftedY < TILE_SIZE;
                 for (int x = 0; x < TILE_SIZE; x++) {
                     // RefData is always in cache.
-                    uint refDataVal = refData[y * TILE_SIZE + x];
+                    float refDataVal = refData[y * TILE_SIZE + x];
                     int shiftedX = x + dX;
                     ivec2 xyRef = xyFrame + ivec2(shiftedX, shiftedY);
 
                     // Do a very slow texelFetch.
-                    uvec4 altDataVal = uvec4(
+                    vec4 altDataVal = vec4(
                         texelFetch(altFrame, xyRef + ivec2(xAlign.x, yAlign.x), 0).x,
                         texelFetch(altFrame, xyRef + ivec2(xAlign.y, yAlign.y), 0).y,
                         texelFetch(altFrame, xyRef + ivec2(xAlign.z, yAlign.z), 0).z,
@@ -62,8 +62,7 @@ void main() {
 
                     // All frame data is loaded, compare reference frame with other frames.
                     // Linear noise model.
-                    uvec4 noise = max(altDataVal, refDataVal) - min(altDataVal, refDataVal);
-                    vec4 noisef = vec4(noise.x, noise.y, noise.z, noise.w);
+                    vec4 noisef = abs(altDataVal - refDataVal);
                     currXYNoise += noisef;
                 }
             }

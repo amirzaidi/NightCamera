@@ -11,10 +11,10 @@ float gauss[25] = float[](
     0.01193f, 0.025908f, 0.033547f, 0.025908f, 0.01193f
 );
 
-uniform usampler2D frame;
+uniform sampler2D frame;
 uniform ivec2 bounds;
 
-out uint result;
+out float result;
 
 ivec2 mirrorOOBCoords(ivec2 coords) {
     ivec2 newCoords;
@@ -42,7 +42,7 @@ void main() {
     for (int i = 0; i < 25; i++) {
         ivec2 xyp = xy + ivec2((i % 5) - 2, (i / 5) - 2);
         xyp = mirrorOOBCoords(xyp);
-        val += gauss[i] * float(texelFetch(frame, xyp, 0).x);
+        val += gauss[i] * texelFetch(frame, xyp, 0).x;
     }
-    result = uint(val);
+    result = val;
 }

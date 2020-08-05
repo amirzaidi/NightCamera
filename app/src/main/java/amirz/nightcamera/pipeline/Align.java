@@ -64,15 +64,15 @@ public class Align extends Stage {
 
             // Part 1: Downscaling reference frame.
             mLargeResRef = new Texture(width / 2, height / 2, 1,
-                    Texture.Format.UInt16, null);
+                    Texture.Format.Float16, null);
 
             mMidResRef = new Texture(mLargeResRef.getWidth() / DOWNSAMPLE_SCALE + 1,
                     mLargeResRef.getHeight() / DOWNSAMPLE_SCALE + 1, 1,
-                    Texture.Format.UInt16, null);
+                    Texture.Format.Float16, null);
 
             mSmallResRef = new Texture(mMidResRef.getWidth() / DOWNSAMPLE_SCALE + 1,
                     mMidResRef.getHeight() / DOWNSAMPLE_SCALE + 1, 1,
-                    Texture.Format.UInt16, null);
+                    Texture.Format.Float16, null);
 
             // Running the downscalers.
             converter.useProgram(R.raw.stage0_downscale_boxdown2_fs);
@@ -96,15 +96,15 @@ public class Align extends Stage {
 
             // Part 2: Downscaling alternative frames.
             mLargeRes = new Texture(width / 2, height / 2, 4,
-                    Texture.Format.UInt16, null);
+                    Texture.Format.Float16, null);
 
             mMidRes = new Texture(mLargeRes.getWidth() / DOWNSAMPLE_SCALE + 1,
                     mLargeRes.getHeight() / DOWNSAMPLE_SCALE + 1, 4,
-                    Texture.Format.UInt16, null);
+                    Texture.Format.Float16, null);
 
             mSmallRes = new Texture(mMidRes.getWidth() / DOWNSAMPLE_SCALE + 1,
                     mMidRes.getHeight() / DOWNSAMPLE_SCALE + 1, 4,
-                    Texture.Format.UInt16, null);
+                    Texture.Format.Float16, null);
 
             // Running the downscalers.
             converter.useProgram(R.raw.stage0_downscale_boxdown2_4frames_fs);
