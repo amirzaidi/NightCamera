@@ -2,9 +2,8 @@
 
 #define TILE_SIZE 8
 
-// From 8 to 16 diff per pixel.
-#define MIN_NOISE 512.f
-#define MAX_NOISE 1024.f
+#define MIN_NOISE 500.f
+#define MAX_NOISE 750.f
 
 precision mediump float;
 
