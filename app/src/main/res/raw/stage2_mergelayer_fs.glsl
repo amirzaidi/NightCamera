@@ -1,5 +1,6 @@
 #version 300 es
 
+#define MAX_FRAME_COUNT 5
 #define TILE_SIZE 16
 
 precision mediump float;
@@ -21,18 +22,41 @@ bool isInLimits(ivec2 xy) {
     return xy.x >= 0 && xy.y >= 0 && xy.x < frameSize.x && xy.y < frameSize.y;
 }
 
+ivec4[2] getOffsets(ivec2 xy) {
+    ivec4 offsets[2];
+
+    // Divide by TILE_SIZE, so we select the alignments for the current tile.
+    ivec2 xyTileDiv = xy / TILE_SIZE;
+    //ivec2 xyTileMod = xy % TILE_SIZE;
+    //vec2 xyTileInterp = vec2(float(xyTileMod.x), float(xyTileMod.y));
+    //vec2 xyTileInterpFactor = xyTileInterp / float(TILE_SIZE) - 0.5f; // [-0.5, 0.5]
+
+    //ivec2 xyTileInterpFactorCos; // -0.5 -> 0, 0 -> 256, 0.5 -> 0
+    //xyTileInterpFactorCos.x = int(cos(M_PI * xyTileInterpFactor.x) * 256.f);
+    //xyTileInterpFactorCos.y = int(cos(M_PI * xyTileInterpFactor.y) * 256.f);
+
+    // Simple align.
+    uvec4 xyAlign = texelFetch(alignment, xyTileDiv, 0);
+
+    // Multiply by two, as we used a 2x boxdowned grayscale image.
+    ivec4 xAlign = (ivec4(xyAlign % 256u) - 128) * 2;
+    ivec4 yAlign = (ivec4(xyAlign / 256u) - 128) * 2;
+
+    offsets[0] = xAlign;
+    offsets[1] = yAlign;
+
+    return offsets;
+}
+
 void main() {
     // Shift coords from optimized to real
     ivec2 xy = ivec2(gl_FragCoord.xy);
     uint px[MAX_FRAME_COUNT], tmp;
     ivec2 xyAligned;
 
-    // Divide by TILE_SIZE, so we select the alignments for the current tile.
-    uvec4 xyAlign = texelFetch(alignment, xy / TILE_SIZE, 0);
-
-    // Multiply by two, as we used a 2x boxdowned grayscale image.
-    ivec4 xAlign = (ivec4(xyAlign % 256u) - 128) * 2;
-    ivec4 yAlign = (ivec4(xyAlign / 256u) - 128) * 2;
+    ivec4[2] xyAlign = getOffsets(xy);
+    ivec4 xAlign = xyAlign[0];
+    ivec4 yAlign = xyAlign[1];
 
     px[0] = texelFetch(refFrame, xy, 0).x;
     int p = 1;
