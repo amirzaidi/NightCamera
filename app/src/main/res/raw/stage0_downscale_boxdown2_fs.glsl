@@ -20,6 +20,6 @@ void main() {
     );
 
     // Add weights using CFA later.
-    result = 0.5f * topLeftAndBottomRight
-        + 0.5f * topRightAndBottomLeft;
+    result = (topLeftAndBottomRight
+        + topRightAndBottomLeft)/2.0;
 }

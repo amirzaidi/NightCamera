@@ -115,12 +115,17 @@ void main() {
     ivec2 xyAligned;
     uint val;
     float weight;
-
+    ivec2 iTileCoords = xy - xyTileDiv*TILE_SIZE;
+    vec2 TileCoords = vec2(iTileCoords);
+    TileCoords*=1.0/float(TILE_SIZE);
+    //From 0.0 to 1.0 for cosin
+    
+    float cosw = cos(TileCoords.x + TileCoords.y);
     // Same code but for x, y, z, w.
     if (alignCount >= 1) {
         xyAligned = xy + ivec2(xAlign.x, yAlign.x);
         val = texelFetch(altFrame1, xyAligned, 0).x;
-        weight = xyAlignWeight.x;
+        weight = xyAlignWeight.x*cosw;
         px += weight * float(val);
         pxWeight += weight;
     }
@@ -128,7 +133,7 @@ void main() {
     if (alignCount >= 2) {
         xyAligned = xy + ivec2(xAlign.y, yAlign.y);
         val = texelFetch(altFrame2, xyAligned, 0).x;
-        weight = xyAlignWeight.y;
+        weight = xyAlignWeight.y*cosw;
         px += weight * float(val);
         pxWeight += weight;
     }
@@ -136,7 +141,7 @@ void main() {
     if (alignCount >= 3) {
         xyAligned = xy + ivec2(xAlign.z, yAlign.z);
         val = texelFetch(altFrame3, xyAligned, 0).x;
-        weight = xyAlignWeight.z;
+        weight = xyAlignWeight.z*cosw;
         px += weight * float(val);
         pxWeight += weight;
     }
@@ -144,7 +149,7 @@ void main() {
     if (alignCount >= 4) {
         xyAligned = xy + ivec2(xAlign.w, yAlign.w);
         val = texelFetch(altFrame4, xyAligned, 0).x;
-        weight = xyAlignWeight.w;
+        weight = xyAlignWeight.w*cosw;
         px += weight * float(val);
         pxWeight += weight;
     }

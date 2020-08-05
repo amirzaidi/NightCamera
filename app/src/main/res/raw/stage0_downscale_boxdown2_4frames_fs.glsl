@@ -9,7 +9,7 @@ uniform usampler2D frame4;
 
 out vec4 result;
 
-vec2 getValForTex(usampler2D tex, ivec2 xy) {
+vec2 getValForTex(in usampler2D tex, ivec2 xy) {
     float topLeftAndBottomRight = float(
         texelFetch(tex, xy, 0).x
         + texelFetch(tex, xy + ivec2(1, 1), 0).x
@@ -30,6 +30,6 @@ void main() {
     vec2 val4 = getValForTex(frame4, xy);
 
     // Add weights using CFA later.
-    result = 0.5f * vec4(val1.x, val2.x, val3.x, val4.x)
-        + 0.5f * vec4(val1.y, val2.y, val3.y, val4.y);
+    result = (vec4(val1.x, val2.x, val3.x, val4.x)
+        + vec4(val1.y, val2.y, val3.y, val4.y))/2.0;
 }
