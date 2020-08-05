@@ -2,8 +2,10 @@
 
 #define FLT_MAX 3.402823466e+38
 
-#define TILE_SIZE 8
-#define TILE_PX_COUNT 64
+#define TILE_OFFSET 4
+#define TILE_SCALE 8
+#define TILE_SIZE 16
+#define TILE_PX_COUNT 256
 
 #define ALIGN_MAX_SHIFT 4
 
@@ -28,10 +30,10 @@ void main() {
         yAlign = (ivec4(xyAlign / 256u) - 128) * prevLayerScale;
     }
 
-    ivec2 xyFrame = xy * TILE_SIZE;
+    ivec2 xyFrame = xy * TILE_SCALE;
     float refData[TILE_PX_COUNT];
     for (int i = 0; i < TILE_PX_COUNT; i++) {
-        ivec2 xyRef = xyFrame + ivec2(i % TILE_SIZE, i / TILE_SIZE);
+        ivec2 xyRef = xyFrame + ivec2(i % TILE_SIZE, i / TILE_SIZE) - TILE_OFFSET;
         refData[i] = texelFetch(refFrame, xyRef, 0).x;
     }
 
@@ -58,7 +60,7 @@ void main() {
                     shiftedX = x + dX;
 
                     // Do a slow texelFetch.
-                    xyRef = xyFrame + ivec2(shiftedX, shiftedY);
+                    xyRef = xyFrame + ivec2(shiftedX, shiftedY) - TILE_OFFSET;
                     altDataVal.x = texelFetch(altFrame, xyRef + ivec2(xAlign.x, yAlign.x), 0).x;
                     altDataVal.y = texelFetch(altFrame, xyRef + ivec2(xAlign.y, yAlign.y), 0).y;
                     altDataVal.z = texelFetch(altFrame, xyRef + ivec2(xAlign.z, yAlign.z), 0).z;
