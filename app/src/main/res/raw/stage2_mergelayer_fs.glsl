@@ -1,8 +1,5 @@
 #version 300 es
 
-#define MAX_ALIGN_COUNT 3
-#define MAX_FRAME_COUNT 4
-
 #define TILE_SIZE 16
 
 precision mediump float;
@@ -24,7 +21,9 @@ bool isInLimits(ivec2 xy) {
     return xy.x >= 0 && xy.y >= 0 && xy.x < frameSize.x && xy.y < frameSize.y;
 }
 
-int getResult(ivec2 xy) {
+void main() {
+    // Shift coords from optimized to real
+    ivec2 xy = ivec2(gl_FragCoord.xy);
     uint px[MAX_FRAME_COUNT], tmp;
     ivec2 xyAligned;
 
@@ -89,18 +88,11 @@ int getResult(ivec2 xy) {
         }
     }
 
-    // Multiple of 2, so average the middle two, count 4 -> index 1, 2.
     if (p % 2 == 0) {
-        return int(px[(p / 2) - 1] + px[p / 2]) / 2;
+        // Multiple of 2, so average the middle two, count 4 -> index 1, 2.
+        result = int(px[(p / 2) - 1] + px[p / 2]) / 2;
+    } else {
+        // Rounding down of integer division, count 3 -> index 1.
+        result = int(px[p / 2]);
     }
-
-    // Rounding down of integer division, count 3 -> index 1.
-    return int(px[p / 2]);
-    //*/
-}
-
-void main() {
-    // Shift coords from optimized to real
-    ivec2 xy = ivec2(gl_FragCoord.xy);
-    result = getResult(xy);
 }
