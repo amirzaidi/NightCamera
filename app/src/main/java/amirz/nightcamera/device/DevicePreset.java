@@ -116,7 +116,7 @@ public abstract class DevicePreset {
             int iso = result.get(CaptureResult.SENSOR_SENSITIVITY);
             long frametime = result.get(CaptureResult.SENSOR_FRAME_DURATION);
             long exposure = result.get(CaptureResult.SENSOR_EXPOSURE_TIME);
-            Log.d(TAG, "ISO " + iso + ", Frametime " + (frametime / 1000000f)
+            Log.v(TAG, "ISO " + iso + ", Frametime " + (frametime / 1000000f)
                     + " ms, Exposure " + (exposure  / 1000000f) + " ms");
         }
 
