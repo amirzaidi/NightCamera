@@ -3,7 +3,7 @@
 #define FLT_MAX 3.402823466e+38
 
 #define TILE_SIZE 8
-#define TILE_PX_COUNT 256
+#define TILE_PX_COUNT 64
 
 #define ALIGN_MAX_SHIFT 4
 
