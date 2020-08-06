@@ -16,6 +16,7 @@ import amirz.nightcamera.data.ImageData;
 
 import static amirz.dngprocessor.util.Constants.BLOCK_HEIGHT;
 import static android.opengl.GLES20.*;
+import static android.opengl.GLES30.GL_RGBA_INTEGER;
 
 public class Align extends Stage {
     private static final String TAG = "Align";
@@ -59,6 +60,8 @@ public class Align extends Stage {
 
         private Texture mLargeResRef, mMidResRef, mSmallResRef;
         private Texture mLargeRes, mMidRes, mSmallRes;
+        private Texture mSmallResSumHorz, mMidResSumHorz, mLargeResSumHorz;
+        private Texture mSmallResSumVert, mMidResSumVert, mLargeResSumVert;
         private Texture mSmallAlign, mMidAlign, mLargeAlign;
         private Texture mLargeWeights;
 
@@ -137,7 +140,47 @@ public class Align extends Stage {
         }
 
         public void integrate() {
+            GLPrograms converter = getConverter();
+            converter.useProgram(R.raw.stage1_integrate_fs);
+            converter.seti("altFrame", 0);
 
+            mSmallResSumHorz = new Texture(mSmallRes.getWidth(), mSmallRes.getHeight(), 4,
+                    Texture.Format.Float16, null);
+            mSmallResSumVert = new Texture(mSmallRes.getWidth(), mSmallRes.getHeight(), 4,
+                    Texture.Format.Float16, null);
+
+            mSmallRes.bind(GL_TEXTURE0);
+            converter.seti("maxXY", mSmallRes.getWidth() - 1, mSmallRes.getHeight() - 1);
+            converter.seti("direction", 1, 0);
+            converter.drawBlocks(mSmallResSumHorz, BLOCK_HEIGHT, true);
+            converter.seti("direction", 0, 1);
+            converter.drawBlocks(mSmallResSumVert, BLOCK_HEIGHT, true);
+
+            mMidResSumHorz = new Texture(mMidRes.getWidth(), mMidRes.getHeight(), 4,
+                    Texture.Format.Float16, null);
+            mMidResSumVert = new Texture(mMidRes.getWidth(), mMidRes.getHeight(), 4,
+                    Texture.Format.Float16, null);
+
+            mMidRes.bind(GL_TEXTURE0);
+            converter.seti("maxXY", mMidRes.getWidth() - 1, mMidRes.getHeight() - 1);
+            converter.seti("direction", 1, 0);
+            converter.drawBlocks(mMidResSumHorz, BLOCK_HEIGHT, true);
+            converter.seti("direction", 0, 1);
+            converter.drawBlocks(mMidResSumVert, BLOCK_HEIGHT, true);
+
+            mLargeResSumHorz = new Texture(mLargeRes.getWidth(), mLargeRes.getHeight(), 4,
+                    Texture.Format.Float16, null);
+            mLargeResSumVert = new Texture(mLargeRes.getWidth(), mLargeRes.getHeight(), 4,
+                    Texture.Format.Float16, null);
+
+            mLargeRes.bind(GL_TEXTURE0);
+            converter.seti("maxXY", mLargeRes.getWidth() - 1, mLargeRes.getHeight() - 1);
+            converter.seti("direction", 1, 0);
+            converter.drawBlocks(mLargeResSumHorz, BLOCK_HEIGHT, true);
+            converter.seti("direction", 0, 1);
+            converter.drawBlocks(mLargeResSumVert, BLOCK_HEIGHT, true);
+
+            //DEBUG(this);
         }
 
         /**
@@ -160,12 +203,14 @@ public class Align extends Stage {
                     Texture.Format.UInt16, null);
 
             converter.seti("refFrame", 0);
-            converter.seti("altFrame", 2);
-            converter.seti("prevLayerAlign", 4);
+            converter.seti("altFrameHorz", 2);
+            converter.seti("altFrameVert", 4);
+            converter.seti("prevLayerAlign", 6);
             converter.seti("prevLayerScale", 0);
 
             mSmallResRef.bind(GL_TEXTURE0);
-            mSmallRes.bind(GL_TEXTURE2);
+            mSmallResSumHorz.bind(GL_TEXTURE2);
+            mSmallResSumVert.bind(GL_TEXTURE4);
             converter.seti("bounds", mSmallRes.getWidth(), mSmallRes.getHeight());
             // No PrevAlign on GL_TEXTURE2
             converter.drawBlocks(mSmallAlign, BH);
@@ -173,6 +218,8 @@ public class Align extends Stage {
             // Close resources.
             mSmallResRef.close();
             mSmallRes.close();
+            mSmallResSumHorz.close();
+            mSmallResSumVert.close();
 
             mMidAlign = new Texture(mMidRes.getWidth() / TILE_SIZE + 1,
                     mMidRes.getHeight() / TILE_SIZE + 1, 4,
@@ -182,14 +229,17 @@ public class Align extends Stage {
             converter.seti("prevLayerScale", 4);
 
             mMidResRef.bind(GL_TEXTURE0);
-            mMidRes.bind(GL_TEXTURE2);
+            mMidResSumHorz.bind(GL_TEXTURE2);
+            mMidResSumVert.bind(GL_TEXTURE4);
             converter.seti("bounds", mMidRes.getWidth(), mMidRes.getHeight());
-            mSmallAlign.bind(GL_TEXTURE4);
+            mSmallAlign.bind(GL_TEXTURE6);
             converter.drawBlocks(mMidAlign, BH);
 
             // Close resources.
             mMidResRef.close();
             mMidRes.close();
+            mMidResSumHorz.close();
+            mMidResSumVert.close();
             mSmallAlign.close();
 
             mLargeAlign = new Texture(mLargeRes.getWidth() / TILE_SIZE + 1,
@@ -197,12 +247,15 @@ public class Align extends Stage {
                     Texture.Format.UInt16, null);
 
             mLargeResRef.bind(GL_TEXTURE0);
-            mLargeRes.bind(GL_TEXTURE2);
+            mLargeResSumHorz.bind(GL_TEXTURE2);
+            mLargeResSumVert.bind(GL_TEXTURE4);
             converter.seti("bounds", mLargeRes.getWidth(), mLargeRes.getHeight());
-            mMidAlign.bind(GL_TEXTURE4);
+            mMidAlign.bind(GL_TEXTURE6);
             converter.drawBlocks(mLargeAlign, BH, true);
 
             // Close resources.
+            mLargeResSumHorz.close();
+            mLargeResSumVert.close();
             mMidAlign.close();
         }
 
@@ -233,7 +286,7 @@ public class Align extends Stage {
         boolean DEBUG = false;
         // DEBUG = true;
         if (DEBUG) {
-            Texture tex = pyramid.mLargeWeights;
+            Texture tex = pyramid.mLargeResSumVert;
             int w = tex.getWidth();
             int h = tex.getHeight();
 
@@ -298,8 +351,6 @@ public class Align extends Stage {
 
             pyramid.weigh();
             Log.d(TAG, "Weigh time " + timer.reset() + "ms");
-
-            DEBUG(pyramid);
 
             mAlign = pyramid.mLargeAlign;
             mWeights = pyramid.mLargeWeights;
