@@ -5,8 +5,8 @@
 #define TILE_SIZE 16
 
 #define MIN_PIXEL_NOISE 24.f
-#define MIN_NOISE 300.f
-#define MAX_NOISE 480.f
+#define MIN_NOISE 150.f
+#define MAX_NOISE 240.f
 
 precision mediump float;
 
@@ -33,6 +33,11 @@ void main() {
 
     for (int y = 0; y < TILE_SIZE; y++) {
         for (int x = 0; x < TILE_SIZE; x++) {
+            // Use a bayer pattern to speed up this comparison.
+            if ((x + y) % 2 == 1) {
+                continue;
+            }
+
             xyRef = xyFrame + ivec2(x, y) - TILE_OFFSET;
             refDataVal = texelFetch(refFrame, xyRef, 0).x;
             altDataVal.x = texelFetch(altFrame, xyRef + ivec2(xAlign.x, yAlign.x), 0).x;
