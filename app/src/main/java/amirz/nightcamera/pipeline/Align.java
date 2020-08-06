@@ -56,7 +56,6 @@ public class Align extends Stage {
     private class TexPyramid {
         private static final int DOWNSAMPLE_SCALE = 4;
         private static final int TILE_SIZE = 8;
-        private static final int BH = 2;
 
         private Texture mLargeResRef, mMidResRef, mSmallResRef;
         private Texture mLargeRes, mMidRes, mSmallRes;
@@ -150,11 +149,14 @@ public class Align extends Stage {
                     Texture.Format.Float16, null);
 
             mSmallRes.bind(GL_TEXTURE0);
-            converter.seti("maxXY", mSmallRes.getWidth() - 1, mSmallRes.getHeight() - 1);
+            converter.seti("bounds", mSmallRes.getWidth(), mSmallRes.getHeight());
             converter.seti("direction", 1, 0);
             converter.drawBlocks(mSmallResSumHorz, BLOCK_HEIGHT, true);
             converter.seti("direction", 0, 1);
             converter.drawBlocks(mSmallResSumVert, BLOCK_HEIGHT, true);
+
+            // Release resources.
+            mSmallRes.close();
 
             mMidResSumHorz = new Texture(mMidRes.getWidth(), mMidRes.getHeight(), 4,
                     Texture.Format.Float16, null);
@@ -162,11 +164,14 @@ public class Align extends Stage {
                     Texture.Format.Float16, null);
 
             mMidRes.bind(GL_TEXTURE0);
-            converter.seti("maxXY", mMidRes.getWidth() - 1, mMidRes.getHeight() - 1);
+            converter.seti("bounds", mMidRes.getWidth(), mMidRes.getHeight());
             converter.seti("direction", 1, 0);
             converter.drawBlocks(mMidResSumHorz, BLOCK_HEIGHT, true);
             converter.seti("direction", 0, 1);
             converter.drawBlocks(mMidResSumVert, BLOCK_HEIGHT, true);
+
+            // Release resources.
+            mMidRes.close();
 
             mLargeResSumHorz = new Texture(mLargeRes.getWidth(), mLargeRes.getHeight(), 4,
                     Texture.Format.Float16, null);
@@ -174,7 +179,7 @@ public class Align extends Stage {
                     Texture.Format.Float16, null);
 
             mLargeRes.bind(GL_TEXTURE0);
-            converter.seti("maxXY", mLargeRes.getWidth() - 1, mLargeRes.getHeight() - 1);
+            converter.seti("bounds", mLargeRes.getWidth(), mLargeRes.getHeight());
             converter.seti("direction", 1, 0);
             converter.drawBlocks(mLargeResSumHorz, BLOCK_HEIGHT, true);
             converter.seti("direction", 0, 1);
@@ -213,11 +218,10 @@ public class Align extends Stage {
             mSmallResSumVert.bind(GL_TEXTURE4);
             converter.seti("bounds", mSmallRes.getWidth(), mSmallRes.getHeight());
             // No PrevAlign on GL_TEXTURE2
-            converter.drawBlocks(mSmallAlign, BH);
+            converter.drawBlocks(mSmallAlign, BLOCK_HEIGHT);
 
             // Close resources.
             mSmallResRef.close();
-            mSmallRes.close();
             mSmallResSumHorz.close();
             mSmallResSumVert.close();
 
@@ -233,11 +237,10 @@ public class Align extends Stage {
             mMidResSumVert.bind(GL_TEXTURE4);
             converter.seti("bounds", mMidRes.getWidth(), mMidRes.getHeight());
             mSmallAlign.bind(GL_TEXTURE6);
-            converter.drawBlocks(mMidAlign, BH);
+            converter.drawBlocks(mMidAlign, BLOCK_HEIGHT);
 
             // Close resources.
             mMidResRef.close();
-            mMidRes.close();
             mMidResSumHorz.close();
             mMidResSumVert.close();
             mSmallAlign.close();
@@ -251,7 +254,8 @@ public class Align extends Stage {
             mLargeResSumVert.bind(GL_TEXTURE4);
             converter.seti("bounds", mLargeRes.getWidth(), mLargeRes.getHeight());
             mMidAlign.bind(GL_TEXTURE6);
-            converter.drawBlocks(mLargeAlign, BH, true);
+            converter.drawBlocks(mLargeAlign, BLOCK_HEIGHT / DOWNSAMPLE_SCALE, true);
+            // We reduce the block height because of stuttering.
 
             // Close resources.
             mLargeResSumHorz.close();
@@ -274,7 +278,8 @@ public class Align extends Stage {
             mLargeRes.bind(GL_TEXTURE2);
             mLargeAlign.bind(GL_TEXTURE4);
 
-            converter.drawBlocks(mLargeWeights, BH, true);
+            // We reduce the block height because of stuttering.
+            converter.drawBlocks(mLargeWeights, BLOCK_HEIGHT / DOWNSAMPLE_SCALE, true);
 
             // Close resources.
             mLargeResRef.close();
