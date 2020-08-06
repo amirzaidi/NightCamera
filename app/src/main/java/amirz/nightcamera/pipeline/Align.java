@@ -59,6 +59,7 @@ public class Align extends Stage {
 
         private Texture mLargeResRef, mMidResRef, mSmallResRef;
         private Texture mLargeRes, mMidRes, mSmallRes;
+        private Texture mLargeResRefSumHorz, mLargeResRefSumVert;
         private Texture mLargeResSumHorz, mLargeResSumVert;
         private Texture mSmallAlign, mMidAlign, mLargeAlign;
         private Texture mLargeWeights;
@@ -140,6 +141,21 @@ public class Align extends Stage {
         public void integrate() {
             GLPrograms converter = getConverter();
             converter.useProgram(R.raw.stage1_integrate_fs);
+            converter.seti("refFrame", 0);
+
+            mLargeResRefSumHorz = new Texture(mLargeResRef.getWidth(), mLargeResRef.getHeight(), 4,
+                    Texture.Format.Float16, null);
+            mLargeResRefSumVert = new Texture(mLargeResRef.getWidth(), mLargeResRef.getHeight(), 4,
+                    Texture.Format.Float16, null);
+
+            mLargeResRef.bind(GL_TEXTURE0);
+            converter.seti("bounds", mLargeResRef.getWidth(), mLargeResRef.getHeight());
+            converter.seti("direction", 1, 0);
+            converter.drawBlocks(mLargeResRefSumHorz, BLOCK_HEIGHT, true);
+            converter.seti("direction", 0, 1);
+            converter.drawBlocks(mLargeResRefSumVert, BLOCK_HEIGHT, true);
+
+            converter.useProgram(R.raw.stage1_integrate_4frames_fs);
             converter.seti("altFrame", 0);
 
             mLargeResSumHorz = new Texture(mLargeRes.getWidth(), mLargeRes.getHeight(), 4,
@@ -214,7 +230,7 @@ public class Align extends Stage {
             converter.seti("altFrameHorz", 2);
             converter.seti("altFrameVert", 4);
             converter.seti("prevLayerAlign", 6);
-            converter.seti("prevLayerScale", 0);
+            converter.seti("prevLayerScale", 4);
 
             mLargeAlign = new Texture(mLargeRes.getWidth() / TILE_SIZE + 1,
                     mLargeRes.getHeight() / TILE_SIZE + 1, 4,
