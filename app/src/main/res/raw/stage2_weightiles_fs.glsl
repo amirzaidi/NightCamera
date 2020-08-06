@@ -5,8 +5,8 @@
 #define TILE_SIZE 16
 
 #define MIN_PIXEL_NOISE 24.f
-#define MIN_NOISE 400.f
-#define MAX_NOISE 500.f
+#define MIN_NOISE 300.f
+#define MAX_NOISE 400.f
 
 precision mediump float;
 
