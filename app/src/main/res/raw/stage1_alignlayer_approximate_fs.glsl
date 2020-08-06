@@ -16,7 +16,8 @@
 
 precision mediump float;
 
-uniform sampler2D refFrame;
+uniform sampler2D refFrameHorz;
+uniform sampler2D refFrameVert;
 uniform sampler2D altFrameHorz;
 uniform sampler2D altFrameVert;
 
@@ -42,19 +43,10 @@ void main() {
     float refDataHorz[TILE_SIZE]; // Horizontally integrated, so a vertical line of data.
     float refDataVert[TILE_SIZE]; // Vertically integrated, so a horizontal line of data.
 
-    // Init at zero.
+    // Init from texture.
     for (int i = 0; i < TILE_SIZE; i++) {
-        refDataVert[i] = 0.f;
-        refDataHorz[i] = 0.f;
-    }
-
-    // Compute CVN and CHN for reference frame.
-    for (int i = 0; i < TILE_PX_COUNT; i++) {
-        int x = i % TILE_SIZE;
-        int y = i / TILE_SIZE;
-        refDataVal = texelFetch(refFrame, xyFrame + ivec2(x, y) + TILE_MIN_INDEX, 0).x;
-        refDataHorz[y] += refDataVal;
-        refDataVert[x] += refDataVal;
+        refDataHorz[i] = texelFetch(refFrameHorz, xyFrame + ivec2(0, i + TILE_MIN_INDEX), 0).x;
+        refDataVert[i] = texelFetch(refFrameVert, xyFrame + ivec2(i + TILE_MIN_INDEX, 0), 0).x;
     }
 
     // Optimize the bestXShift and bestYShift by minimizing bestXYNoise.

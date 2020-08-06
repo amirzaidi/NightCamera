@@ -140,6 +140,8 @@ public class Align extends Stage {
 
         public void integrate() {
             GLPrograms converter = getConverter();
+
+            // Single-channel ref frame.
             converter.useProgram(R.raw.stage1_integrate_fs);
             converter.seti("refFrame", 0);
 
@@ -155,6 +157,7 @@ public class Align extends Stage {
             converter.seti("direction", 0, 1);
             converter.drawBlocks(mLargeResRefSumVert, BLOCK_HEIGHT, true);
 
+            // Quad-channel alt frames.
             converter.useProgram(R.raw.stage1_integrate_4frames_fs);
             converter.seti("altFrame", 0);
 
@@ -226,24 +229,28 @@ public class Align extends Stage {
 
             converter.useProgram(R.raw.stage1_alignlayer_approximate_fs);
 
-            converter.seti("refFrame", 0);
-            converter.seti("altFrameHorz", 2);
-            converter.seti("altFrameVert", 4);
-            converter.seti("prevLayerAlign", 6);
+            converter.seti("refFrameHorz", 0);
+            converter.seti("refFrameVert", 2);
+            converter.seti("altFrameHorz", 4);
+            converter.seti("altFrameVert", 6);
+            converter.seti("prevLayerAlign", 8);
             converter.seti("prevLayerScale", 4);
 
             mLargeAlign = new Texture(mLargeRes.getWidth() / TILE_SIZE + 1,
                     mLargeRes.getHeight() / TILE_SIZE + 1, 4,
                     Texture.Format.UInt16, null);
 
-            mLargeResRef.bind(GL_TEXTURE0);
-            mLargeResSumHorz.bind(GL_TEXTURE2);
-            mLargeResSumVert.bind(GL_TEXTURE4);
-            mMidAlign.bind(GL_TEXTURE6);
+            mLargeResRefSumHorz.bind(GL_TEXTURE0);
+            mLargeResRefSumVert.bind(GL_TEXTURE2);
+            mLargeResSumHorz.bind(GL_TEXTURE4);
+            mLargeResSumVert.bind(GL_TEXTURE6);
+            mMidAlign.bind(GL_TEXTURE8);
             converter.drawBlocks(mLargeAlign, BLOCK_HEIGHT / DOWNSAMPLE_SCALE, true);
             // We reduce the block height because of stuttering.
 
             // Close resources.
+            mLargeResRefSumHorz.close();
+            mLargeResRefSumVert.close();
             mLargeResSumHorz.close();
             mLargeResSumVert.close();
             mMidAlign.close();
