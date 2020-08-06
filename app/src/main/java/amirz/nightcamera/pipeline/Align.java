@@ -59,8 +59,7 @@ public class Align extends Stage {
 
         private Texture mLargeResRef, mMidResRef, mSmallResRef;
         private Texture mLargeRes, mMidRes, mSmallRes;
-        private Texture mSmallResSumHorz, mMidResSumHorz, mLargeResSumHorz;
-        private Texture mSmallResSumVert, mMidResSumVert, mLargeResSumVert;
+        private Texture mLargeResSumHorz, mLargeResSumVert;
         private Texture mSmallAlign, mMidAlign, mLargeAlign;
         private Texture mLargeWeights;
 
@@ -143,36 +142,6 @@ public class Align extends Stage {
             converter.useProgram(R.raw.stage1_integrate_fs);
             converter.seti("altFrame", 0);
 
-            mSmallResSumHorz = new Texture(mSmallRes.getWidth(), mSmallRes.getHeight(), 4,
-                    Texture.Format.Float16, null);
-            mSmallResSumVert = new Texture(mSmallRes.getWidth(), mSmallRes.getHeight(), 4,
-                    Texture.Format.Float16, null);
-
-            mSmallRes.bind(GL_TEXTURE0);
-            converter.seti("bounds", mSmallRes.getWidth(), mSmallRes.getHeight());
-            converter.seti("direction", 1, 0);
-            converter.drawBlocks(mSmallResSumHorz, BLOCK_HEIGHT, true);
-            converter.seti("direction", 0, 1);
-            converter.drawBlocks(mSmallResSumVert, BLOCK_HEIGHT, true);
-
-            // Release resources.
-            mSmallRes.close();
-
-            mMidResSumHorz = new Texture(mMidRes.getWidth(), mMidRes.getHeight(), 4,
-                    Texture.Format.Float16, null);
-            mMidResSumVert = new Texture(mMidRes.getWidth(), mMidRes.getHeight(), 4,
-                    Texture.Format.Float16, null);
-
-            mMidRes.bind(GL_TEXTURE0);
-            converter.seti("bounds", mMidRes.getWidth(), mMidRes.getHeight());
-            converter.seti("direction", 1, 0);
-            converter.drawBlocks(mMidResSumHorz, BLOCK_HEIGHT, true);
-            converter.seti("direction", 0, 1);
-            converter.drawBlocks(mMidResSumVert, BLOCK_HEIGHT, true);
-
-            // Release resources.
-            mMidRes.close();
-
             mLargeResSumHorz = new Texture(mLargeRes.getWidth(), mLargeRes.getHeight(), 4,
                     Texture.Format.Float16, null);
             mLargeResSumVert = new Texture(mLargeRes.getWidth(), mLargeRes.getHeight(), 4,
@@ -208,22 +177,18 @@ public class Align extends Stage {
                     Texture.Format.UInt16, null);
 
             converter.seti("refFrame", 0);
-            converter.seti("altFrameHorz", 2);
-            converter.seti("altFrameVert", 4);
-            converter.seti("prevLayerAlign", 6);
+            converter.seti("altFrame", 2);
+            converter.seti("prevLayerAlign", 4);
             converter.seti("prevLayerScale", 0);
 
             mSmallResRef.bind(GL_TEXTURE0);
-            mSmallResSumHorz.bind(GL_TEXTURE2);
-            mSmallResSumVert.bind(GL_TEXTURE4);
-            converter.seti("bounds", mSmallRes.getWidth(), mSmallRes.getHeight());
+            mSmallRes.bind(GL_TEXTURE2);
             // No PrevAlign on GL_TEXTURE2
             converter.drawBlocks(mSmallAlign, BLOCK_HEIGHT);
 
             // Close resources.
             mSmallResRef.close();
-            mSmallResSumHorz.close();
-            mSmallResSumVert.close();
+            mSmallRes.close();
 
             mMidAlign = new Texture(mMidRes.getWidth() / TILE_SIZE + 1,
                     mMidRes.getHeight() / TILE_SIZE + 1, 4,
@@ -233,17 +198,23 @@ public class Align extends Stage {
             converter.seti("prevLayerScale", 4);
 
             mMidResRef.bind(GL_TEXTURE0);
-            mMidResSumHorz.bind(GL_TEXTURE2);
-            mMidResSumVert.bind(GL_TEXTURE4);
-            converter.seti("bounds", mMidRes.getWidth(), mMidRes.getHeight());
-            mSmallAlign.bind(GL_TEXTURE6);
-            converter.drawBlocks(mMidAlign, BLOCK_HEIGHT);
+            mMidRes.bind(GL_TEXTURE2);
+            mSmallAlign.bind(GL_TEXTURE4);
+            converter.drawBlocks(mMidAlign, BLOCK_HEIGHT / DOWNSAMPLE_SCALE, true);
+            // We reduce the block height because of stuttering.
 
             // Close resources.
             mMidResRef.close();
-            mMidResSumHorz.close();
-            mMidResSumVert.close();
+            mMidRes.close();
             mSmallAlign.close();
+
+            converter.useProgram(R.raw.stage1_alignlayer_approximate_fs);
+
+            converter.seti("refFrame", 0);
+            converter.seti("altFrameHorz", 2);
+            converter.seti("altFrameVert", 4);
+            converter.seti("prevLayerAlign", 6);
+            converter.seti("prevLayerScale", 0);
 
             mLargeAlign = new Texture(mLargeRes.getWidth() / TILE_SIZE + 1,
                     mLargeRes.getHeight() / TILE_SIZE + 1, 4,
@@ -252,7 +223,6 @@ public class Align extends Stage {
             mLargeResRef.bind(GL_TEXTURE0);
             mLargeResSumHorz.bind(GL_TEXTURE2);
             mLargeResSumVert.bind(GL_TEXTURE4);
-            converter.seti("bounds", mLargeRes.getWidth(), mLargeRes.getHeight());
             mMidAlign.bind(GL_TEXTURE6);
             converter.drawBlocks(mLargeAlign, BLOCK_HEIGHT / DOWNSAMPLE_SCALE, true);
             // We reduce the block height because of stuttering.
@@ -288,25 +258,21 @@ public class Align extends Stage {
     }
 
     private void DEBUG(TexPyramid pyramid) {
-        boolean DEBUG = false;
-        // DEBUG = true;
-        if (DEBUG) {
-            Texture tex = pyramid.mLargeResSumVert;
-            int w = tex.getWidth();
-            int h = tex.getHeight();
+        Texture tex = pyramid.mLargeResSumHorz;
+        int w = tex.getWidth();
+        int h = tex.getHeight();
 
-            ByteBuffer buffer = ByteBuffer.allocateDirect(w * h * 4 * 4);
-            float[] floats = new float[w * h * 4];
-            //int[] uints = new int[w * h * 4];
+        ByteBuffer buffer = ByteBuffer.allocateDirect(w * h * 4 * 4);
+        float[] floats = new float[w * h * 4];
+        //int[] uints = new int[w * h * 4];
 
-            // Extract floats
-            glReadPixels(0, 0, w, h, GL_RGBA, GL_FLOAT, buffer);
-            //glReadPixels(0, 0, w, h, GL_RGBA_INTEGER, GL_UNSIGNED_INT, buffer);
-            buffer.position(0);
-            buffer.order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(floats);
-            //buffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(uints);
-            Log.d("Align", "Test " + glGetError());
-        }
+        // Extract floats
+        glReadPixels(0, h / 2, w, 1, GL_RGBA, GL_FLOAT, buffer);
+        //glReadPixels(0, 0, w, h, GL_RGBA_INTEGER, GL_UNSIGNED_INT, buffer);
+        buffer.position(0);
+        buffer.order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(floats);
+        //buffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(uints);
+        Log.d("Align", "Test " + glGetError());
     }
 
     private static class Timer {

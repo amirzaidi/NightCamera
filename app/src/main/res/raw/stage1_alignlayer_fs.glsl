@@ -2,24 +2,17 @@
 
 #define FLT_MAX 3.402823466e+38
 
+#define TILE_OFFSET 4
 #define TILE_SCALE 8
 #define TILE_SIZE 16
-
-#define TILE_MIN_INDEX -4
-#define TILE_MAX_INDEX 12
-
 #define TILE_PX_COUNT 256
 
-// Should be at least TILE_SCALE / 2.
-#define ALIGN_MIN_SHIFT -4
 #define ALIGN_MAX_SHIFT 4
 
 precision mediump float;
 
 uniform sampler2D refFrame;
-uniform sampler2D altFrameHorz;
-uniform sampler2D altFrameVert;
-uniform ivec2 bounds;
+uniform sampler2D altFrame;
 
 uniform usampler2D prevLayerAlign;
 uniform int prevLayerScale;
@@ -37,77 +30,46 @@ void main() {
     }
 
     ivec2 xyFrame = xy * TILE_SCALE;
-
-    int x, y;
-    float refDataVal;
-    float refDataHorz[TILE_SIZE]; // Horizontally integrated, so a vertical line of data.
-    float refDataVert[TILE_SIZE]; // Vertically integrated, so a horizontal line of data.
-
-    // Init at zero.
-    for (int i = 0; i < TILE_SIZE; i++) {
-        refDataVert[i] = 0.f;
-        refDataHorz[i] = 0.f;
-    }
-
-    // Compute CVN and CHN for reference frame.
+    float refData[TILE_PX_COUNT];
     for (int i = 0; i < TILE_PX_COUNT; i++) {
-        int x = i % TILE_SIZE;
-        int y = i / TILE_SIZE;
-        refDataVal = texelFetch(refFrame, xyFrame + ivec2(x, y) + TILE_MIN_INDEX, 0).x;
-        refDataHorz[y] += refDataVal;
-        refDataVert[x] += refDataVal;
+        ivec2 xyRef = xyFrame + ivec2(i % TILE_SIZE, i / TILE_SIZE) - TILE_OFFSET;
+        refData[i] = texelFetch(refFrame, xyRef, 0).x;
     }
 
-    // Optimize the bestXShift and bestYShift by minimizing bestXYNoise.
     ivec4 bestXShift, bestYShift;
     vec4 bestXYNoise = vec4(FLT_MAX);
 
-    // Varying variables.
-    int altDataValIndex;
+    int shiftedY, shiftedX;
+    bool isYInCache;
+    float refDataVal;
     vec4 altDataVal;
-    vec4 altDataVert[TILE_SIZE + (ALIGN_MAX_SHIFT - ALIGN_MIN_SHIFT) + 1];
-    ivec2 xyShifted, xyIndex;
+    ivec2 xyRef;
     vec4 noisef;
-    vec4 currXYNoise;
-    for (int dY = ALIGN_MIN_SHIFT; dY <= ALIGN_MAX_SHIFT; dY++) {
-        // Cache all vertically integrated columns on this row for all alignments.
-        xyShifted = xyFrame + ivec2(ALIGN_MIN_SHIFT, dY); // Assume the leftmost shift.
-        for (x = 0; x <= (ALIGN_MAX_SHIFT - ALIGN_MIN_SHIFT) + TILE_SIZE; x++) {
-            xyIndex = xyShifted + ivec2(x, 0); // Then add the relative x coordinate to cache.
-            altDataVert[x].x = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.x, yAlign.x), 0).x;
-            altDataVert[x].y = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.y, yAlign.y), 0).y;
-            altDataVert[x].z = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.z, yAlign.z), 0).z;
-            altDataVert[x].w = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.w, yAlign.w), 0).w;
-        }
 
-        for (int dX = ALIGN_MIN_SHIFT; dX <= ALIGN_MAX_SHIFT; dX++) {
-            currXYNoise = vec4(0.f);
-            xyShifted = xyFrame + ivec2(dX, dY);
+    for (int dY = -ALIGN_MAX_SHIFT; dY <= ALIGN_MAX_SHIFT; dY++) {
+        for (int dX = -ALIGN_MAX_SHIFT; dX <= ALIGN_MAX_SHIFT; dX++) {
+            vec4 currXYNoise = vec4(0.f);
 
-            // Check all horizontally integrated rows by doing expensive texelFetches.
-            for (y = TILE_MIN_INDEX; y < TILE_MAX_INDEX; y++) {
-                xyIndex = xyShifted + ivec2(0, y);
-                altDataVal.x = texelFetch(altFrameHorz, xyIndex + ivec2(xAlign.x, yAlign.x), 0).x;
-                altDataVal.y = texelFetch(altFrameHorz, xyIndex + ivec2(xAlign.y, yAlign.y), 0).y;
-                altDataVal.z = texelFetch(altFrameHorz, xyIndex + ivec2(xAlign.z, yAlign.z), 0).z;
-                altDataVal.w = texelFetch(altFrameHorz, xyIndex + ivec2(xAlign.w, yAlign.w), 0).w;
+            // Iterate over refData, processing all altData frames simultaneously.
+            for (int y = 0; y < TILE_SIZE; y++) {
+                shiftedY = y + dY;
+                for (int x = 0; x < TILE_SIZE; x++) {
+                    // RefData is always in cache.
+                    refDataVal = refData[y * TILE_SIZE + x];
+                    shiftedX = x + dX;
 
-                // All frame data is loaded, compare reference frame with other frames.
-                // Linear noise model.
-                noisef = abs(altDataVal - refDataHorz[y - TILE_MIN_INDEX]);
-                currXYNoise += noisef;
-            }
+                    // Do a slow texelFetch.
+                    xyRef = xyFrame + ivec2(shiftedX, shiftedY) - TILE_OFFSET;
+                    altDataVal.x = texelFetch(altFrame, xyRef + ivec2(xAlign.x, yAlign.x), 0).x;
+                    altDataVal.y = texelFetch(altFrame, xyRef + ivec2(xAlign.y, yAlign.y), 0).y;
+                    altDataVal.z = texelFetch(altFrame, xyRef + ivec2(xAlign.z, yAlign.z), 0).z;
+                    altDataVal.w = texelFetch(altFrame, xyRef + ivec2(xAlign.w, yAlign.w), 0).w;
 
-            // Check all vertically integrated columns.
-            for (x = TILE_MIN_INDEX; x < TILE_MAX_INDEX; x++) {
-                xyIndex = xyShifted + ivec2(x, 0);
-                altDataValIndex = (x - TILE_MIN_INDEX) + (dX - ALIGN_MIN_SHIFT);
-                altDataVal = altDataVert[altDataValIndex];
-
-                // All frame data is loaded, compare reference frame with other frames.
-                // Linear noise model.
-                noisef = abs(altDataVal - refDataVert[x - TILE_MIN_INDEX]);
-                currXYNoise += noisef;
+                    // All frame data is loaded, compare reference frame with other frames.
+                    // Linear noise model.
+                    noisef = abs(altDataVal - refDataVal);
+                    currXYNoise += noisef;
+                }
             }
 
             // Manually update the four frames' best shift.
