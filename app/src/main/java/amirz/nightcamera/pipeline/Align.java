@@ -14,10 +14,12 @@ import amirz.dngprocessor.pipeline.Stage;
 import amirz.nightcamera.R;
 import amirz.nightcamera.data.ImageData;
 
+import static amirz.dngprocessor.util.Constants.BLOCK_HEIGHT;
 import static android.opengl.GLES20.*;
-import static android.opengl.GLES30.GL_RGBA_INTEGER;
 
 public class Align extends Stage {
+    private static final String TAG = "Align";
+
     private final List<ImageData> mImages;
     private final int mWidth, mHeight;
     private final Texture.Config mConfig;
@@ -53,7 +55,7 @@ public class Align extends Stage {
     private class TexPyramid {
         private static final int DOWNSAMPLE_SCALE = 4;
         private static final int TILE_SIZE = 8;
-        private static final int BH = 1;
+        private static final int BH = 2;
 
         private Texture mLargeResRef, mMidResRef, mSmallResRef;
         private Texture mLargeRes, mMidRes, mSmallRes;
@@ -84,19 +86,19 @@ public class Align extends Stage {
             {
                 converter.seti("frame", 0);
                 refTex.bind(GL_TEXTURE0);
-                converter.drawBlocks(mLargeResRef);
+                converter.drawBlocks(mLargeResRef, BLOCK_HEIGHT);
             }
             converter.useProgram(R.raw.stage0_downscale_gaussdown4_fs);
             {
                 converter.seti("frame", 0);
                 mLargeResRef.bind(GL_TEXTURE0);
                 converter.seti("bounds", mLargeResRef.getWidth(), mLargeResRef.getHeight());
-                converter.drawBlocks(mMidResRef);
+                converter.drawBlocks(mMidResRef, BLOCK_HEIGHT);
             }
             {
                 mMidResRef.bind(GL_TEXTURE0);
                 converter.seti("bounds", mMidResRef.getWidth(), mMidResRef.getHeight());
-                converter.drawBlocks(mSmallResRef);
+                converter.drawBlocks(mSmallResRef, BLOCK_HEIGHT, true);
             }
 
             // Part 2: Downscaling alternative frames.
@@ -118,20 +120,24 @@ public class Align extends Stage {
                     mTextures.get(i).bind(GL_TEXTURE0 + 2 * i);
                     converter.seti("frame" + i, 2 * i);
                 }
-                converter.drawBlocks(mLargeRes);
+                converter.drawBlocks(mLargeRes, BLOCK_HEIGHT);
             }
             converter.useProgram(R.raw.stage0_downscale_gaussdown4_4frames_fs);
             converter.seti("frame", 0);
             {
                 mLargeRes.bind(GL_TEXTURE0);
                 converter.seti("bounds", mLargeRes.getWidth(), mLargeRes.getHeight());
-                converter.drawBlocks(mMidRes);
+                converter.drawBlocks(mMidRes, BLOCK_HEIGHT);
             }
             {
                 mMidRes.bind(GL_TEXTURE0);
                 converter.seti("bounds", mMidRes.getWidth(), mMidRes.getHeight());
-                converter.drawBlocks(mSmallRes);
+                converter.drawBlocks(mSmallRes, BLOCK_HEIGHT, true);
             }
+        }
+
+        public void integrate() {
+
         }
 
         /**
@@ -194,7 +200,7 @@ public class Align extends Stage {
             mLargeRes.bind(GL_TEXTURE2);
             converter.seti("bounds", mLargeRes.getWidth(), mLargeRes.getHeight());
             mMidAlign.bind(GL_TEXTURE4);
-            converter.drawBlocks(mLargeAlign, BH);
+            converter.drawBlocks(mLargeAlign, BH, true);
 
             // Close resources.
             mMidAlign.close();
@@ -215,7 +221,7 @@ public class Align extends Stage {
             mLargeRes.bind(GL_TEXTURE2);
             mLargeAlign.bind(GL_TEXTURE4);
 
-            converter.drawBlocks(mLargeWeights);
+            converter.drawBlocks(mLargeWeights, BH, true);
 
             // Close resources.
             mLargeResRef.close();
@@ -225,7 +231,7 @@ public class Align extends Stage {
 
     private void DEBUG(TexPyramid pyramid) {
         boolean DEBUG = false;
-        //DEBUG = true;
+        // DEBUG = true;
         if (DEBUG) {
             Texture tex = pyramid.mLargeWeights;
             int w = tex.getWidth();
@@ -242,6 +248,21 @@ public class Align extends Stage {
             buffer.order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer().get(floats);
             //buffer.order(ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(uints);
             Log.d("Align", "Test " + glGetError());
+        }
+    }
+
+    private static class Timer {
+        private long startTime;
+
+        private Timer() {
+            reset();
+        }
+
+        private long reset() {
+            long endTime = System.currentTimeMillis();
+            long timeDiff = endTime - startTime;
+            startTime = endTime;
+            return timeDiff;
         }
     }
 
@@ -264,25 +285,19 @@ public class Align extends Stage {
             }
 
             TexPyramid pyramid = new TexPyramid();
-            long startTime = System.currentTimeMillis();
+            Timer timer = new Timer();
 
             pyramid.downsample();
-            long subSampleTime = System.currentTimeMillis();
-            long timeSpan = subSampleTime - startTime;
-            Log.d("Align", "Downsample time " + timeSpan + "ms");
-            // 50ms
+            Log.d(TAG, "Downsample time " + timer.reset() + "ms");
+
+            pyramid.integrate();
+            Log.d(TAG, "Integrate time " + timer.reset() + "ms");
 
             pyramid.align();
-            long alignTime = System.currentTimeMillis();
-            timeSpan = alignTime - subSampleTime;
-            Log.d("Align", "Align time " + timeSpan + "ms");
-            // 2000ms
+            Log.d(TAG, "Align time " + timer.reset() + "ms");
 
             pyramid.weigh();
-            long weighTime = System.currentTimeMillis();
-            timeSpan = weighTime - alignTime;
-            Log.d("Align", "Weigh time " + timeSpan + "ms");
-            // ?
+            Log.d(TAG, "Weigh time " + timer.reset() + "ms");
 
             DEBUG(pyramid);
 

@@ -4,6 +4,7 @@ import android.opengl.EGLConfig;
 import android.opengl.EGLContext;
 import android.opengl.EGLDisplay;
 import android.opengl.EGLSurface;
+import android.util.Log;
 
 import java.nio.ByteBuffer;
 
@@ -13,6 +14,8 @@ import static android.opengl.GLES20.glReadPixels;
 import static android.opengl.GLES30.GL_RED_INTEGER;
 
 public class GLCore implements AutoCloseable {
+    private static final String TAG = "GLCore";
+
     public final int width, height;
 
     private final EGLDisplay mDisplay;
@@ -91,11 +94,19 @@ public class GLCore implements AutoCloseable {
 
     @Override
     public void close() {
+        Log.d(TAG, "Closing program");
         mProgram.close();
 
+        Log.d(TAG, "Making NO_SURFACE Current");
         eglMakeCurrent(mDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+
+        Log.d(TAG, "Destroying Context");
         eglDestroyContext(mDisplay, mContext);
+
+        Log.d(TAG, "Destroying Surface");
         eglDestroySurface(mDisplay, mSurface);
+
+        Log.d(TAG, "Terminating Display");
         eglTerminate(mDisplay);
     }
 }

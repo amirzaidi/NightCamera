@@ -1,6 +1,8 @@
 package amirz.dngprocessor.gl;
 
 import java.nio.Buffer;
+import java.util.ArrayList;
+import java.util.List;
 
 import static android.opengl.GLES20.GL_CLAMP_TO_EDGE;
 import static android.opengl.GLES20.GL_COLOR_ATTACHMENT0;
@@ -42,6 +44,16 @@ import static javax.microedition.khronos.opengles.GL10.GL_TEXTURE_MAG_FILTER;
 import static javax.microedition.khronos.opengles.GL10.GL_TEXTURE_MIN_FILTER;
 
 public class Texture implements AutoCloseable {
+    private static final List<Texture> sOpenTextures = new ArrayList<>();
+
+    public static void closeAllOpenTextures() {
+        synchronized (sOpenTextures) {
+            for (Texture tex : new ArrayList<>(sOpenTextures)) {
+                tex.close();
+            }
+        }
+    }
+
     public enum Format {
         Float16,
         UInt16
@@ -94,6 +106,10 @@ public class Texture implements AutoCloseable {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, texFilter);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, texWrap);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, texWrap);
+
+        synchronized (sOpenTextures) {
+            sOpenTextures.add(this);
+        }
     }
 
     public void bind(int slot) {
@@ -139,6 +155,10 @@ public class Texture implements AutoCloseable {
     public void close() {
         glDeleteTextures(1, new int[] { mTexId }, 0);
         mClosed = true;
+
+        synchronized (sOpenTextures) {
+            sOpenTextures.remove(this);
+        }
     }
 
     private int internalFormat() {
@@ -181,7 +201,7 @@ public class Texture implements AutoCloseable {
         return 0;
     }
 
-    private int type() {
+    public int type() {
         switch (mFormat) {
             case Float16: return GL_FLOAT;
             case UInt16: return GL_UNSIGNED_SHORT;

@@ -1,5 +1,7 @@
 package amirz.nightcamera.pipeline;
 
+import android.util.Log;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -7,8 +9,11 @@ import java.util.List;
 import amirz.dngprocessor.gl.GLCore;
 import amirz.dngprocessor.gl.GLPrograms;
 import amirz.dngprocessor.gl.ShaderLoader;
+import amirz.dngprocessor.gl.Texture;
 import amirz.dngprocessor.pipeline.Stage;
 import amirz.nightcamera.data.ImageData;
+
+import static amirz.dngprocessor.util.Constants.BLOCK_HEIGHT;
 
 public class StagePipeline implements AutoCloseable {
     private static final String TAG = "StagePipeline";
@@ -42,16 +47,21 @@ public class StagePipeline implements AutoCloseable {
         }
 
         // Assume that last stage set everything but did not render yet.
-        mCore.getProgram().drawBlocks(mCore.width, mCore.height);
+        mCore.getProgram().drawBlocks(mCore.width, mCore.height, BLOCK_HEIGHT);
         return mCore.resultBuffer();
     }
 
     @Override
     public void close() {
         for (Stage stage : mStages) {
+            Log.d(TAG, "Closing stage " + stage.getClass().getSimpleName());
             stage.close();
         }
+        Log.d(TAG, "Closing textures");
+        Texture.closeAllOpenTextures();
+        Log.d(TAG, "Closing core");
         mCore.close();
+        Log.d(TAG, "Close complete");
     }
 
     public static class StageMap {

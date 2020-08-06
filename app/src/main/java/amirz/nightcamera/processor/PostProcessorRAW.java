@@ -81,6 +81,7 @@ public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
 
             initStagePipeline();
             buffer = mStagePipeline.execute();
+            Log.d(TAG, "Done with pipeline");
         }
 
         try (DngCreator dngCreator = new DngCreator(mStreamFormat.characteristics, img.result)) {
@@ -94,6 +95,7 @@ public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
                     Log.d(TAG, "Saving rendered buffer");
                     dngCreator.writeByteBuffer(output, size, buffer, 0);
                 }
+                Log.d(TAG, "Saved!");
             }
             return new File[] { tmp };
         } catch (IOException e) {
@@ -105,7 +107,9 @@ public class PostProcessorRAW extends PostProcessor implements AutoCloseable {
     @Override
     public void close() {
         if (mStagePipeline != null) {
+            Log.d(TAG, "Start close");
             mStagePipeline.close();
+            Log.d(TAG, "End close");
         }
     }
 }

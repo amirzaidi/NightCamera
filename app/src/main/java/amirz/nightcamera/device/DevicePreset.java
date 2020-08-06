@@ -112,7 +112,9 @@ public abstract class DevicePreset {
         builder.addTarget(previewSurface);
         builder.addTarget(zslSurface);
 
-        if (result != null) {
+        boolean DEBUG = false;
+        // DEBUG = true;
+        if (DEBUG && result != null) {
             int iso = result.get(CaptureResult.SENSOR_SENSITIVITY);
             long frametime = result.get(CaptureResult.SENSOR_FRAME_DURATION);
             long exposure = result.get(CaptureResult.SENSOR_EXPOSURE_TIME);

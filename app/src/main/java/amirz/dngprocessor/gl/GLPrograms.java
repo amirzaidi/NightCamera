@@ -1,5 +1,8 @@
 package amirz.dngprocessor.gl;
 
+import android.util.Log;
+
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -7,11 +10,11 @@ import java.util.Map;
 import amirz.dngprocessor.math.BlockDivider;
 import amirz.nightcamera.R;
 
-import static amirz.dngprocessor.util.Constants.BLOCK_HEIGHT;
 import static android.opengl.GLES20.*;
 import static android.opengl.GLES30.*;
 
 public class GLPrograms implements AutoCloseable {
+    private final ByteBuffer mFlushBuffer = ByteBuffer.allocateDirect(4 * 4 * 4096);
     private final int vertexShader;
 
     private final ShaderLoader mShaderLoader;
@@ -22,6 +25,7 @@ public class GLPrograms implements AutoCloseable {
     public GLPrograms(ShaderLoader shaderLoader) {
         mShaderLoader = shaderLoader;
         vertexShader = loadShader(GL_VERTEX_SHADER, shaderLoader.readRaw(R.raw.passthrough_vs));
+        mFlushBuffer.mark();
     }
 
     @SuppressWarnings("ConstantConditions")
@@ -51,31 +55,38 @@ public class GLPrograms implements AutoCloseable {
         return program;
     }
 
-    public void draw() {
-        mSquare.draw(vPosition());
-        glFlush();
-    }
-
-    public void drawBlocks(Texture texture) {
-        texture.setFrameBuffer();
-        drawBlocks(texture.getWidth(), texture.getHeight());
-    }
-
     public void drawBlocks(Texture texture, int bh) {
-        texture.setFrameBuffer();
-        drawBlocks(texture.getWidth(), texture.getHeight(), bh);
+        drawBlocks(texture, bh, false);
     }
 
-    public void drawBlocks(int w, int h) {
-        drawBlocks(w, h, BLOCK_HEIGHT);
+    public void drawBlocks(Texture texture, int bh, boolean forceFlush) {
+        texture.setFrameBuffer();
+        drawBlocks(texture.getWidth(), texture.getHeight(), bh, forceFlush ? texture.type() : -1);
     }
 
     public void drawBlocks(int w, int h, int bh) {
+        drawBlocks(w, h, bh, -1);
+    }
+
+    private void drawBlocks(int w, int h, int bh, int flushType) {
+        mFlushBuffer.reset();
+
         BlockDivider divider = new BlockDivider(h, bh);
         int[] row = new int[2];
         while (divider.nextBlock(row)) {
             glViewport(0, row[0], w, row[1]);
-            draw();
+            mSquare.draw(vPosition());
+
+            // Force flush.
+            glFlush();
+            if (flushType != -1) {
+                int flushFormat = flushType == GL_FLOAT ? GL_RGBA : GL_RGBA_INTEGER;
+                glReadPixels(0, row[0], 1, 1, flushFormat, flushType, mFlushBuffer);
+                int glError = glGetError();
+                if (glError != 0) {
+                    Log.d("GLPrograms", "GLError: " + glError);
+                }
+            }
         }
     }
 
