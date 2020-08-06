@@ -63,16 +63,28 @@ void main() {
     vec4 bestXYNoise = vec4(FLT_MAX);
 
     // Varying variables.
+    int altDataValIndex;
     vec4 altDataVal;
+    vec4 altDataVert[TILE_SIZE + (ALIGN_MAX_SHIFT - ALIGN_MIN_SHIFT) + 1];
     ivec2 xyShifted, xyIndex;
     vec4 noisef;
     vec4 currXYNoise;
     for (int dY = ALIGN_MIN_SHIFT; dY <= ALIGN_MAX_SHIFT; dY++) {
+        // Cache all vertically integrated columns on this row for all alignments.
+        xyShifted = xyFrame + ivec2(ALIGN_MIN_SHIFT, dY); // Assume the leftmost shift.
+        for (x = 0; x <= (ALIGN_MAX_SHIFT - ALIGN_MIN_SHIFT) + TILE_SIZE; x++) {
+            xyIndex = xyShifted + ivec2(x, 0); // Then add the relative x coordinate to cache.
+            altDataVert[x].x = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.x, yAlign.x), 0).x;
+            altDataVert[x].y = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.y, yAlign.y), 0).y;
+            altDataVert[x].z = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.z, yAlign.z), 0).z;
+            altDataVert[x].w = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.w, yAlign.w), 0).w;
+        }
+
         for (int dX = ALIGN_MIN_SHIFT; dX <= ALIGN_MAX_SHIFT; dX++) {
             currXYNoise = vec4(0.f);
             xyShifted = xyFrame + ivec2(dX, dY);
 
-            // Check all horizontally integrated rows.
+            // Check all horizontally integrated rows by doing expensive texelFetches.
             for (y = TILE_MIN_INDEX; y < TILE_MAX_INDEX; y++) {
                 xyIndex = xyShifted + ivec2(0, y);
                 altDataVal.x = texelFetch(altFrameHorz, xyIndex + ivec2(xAlign.x, yAlign.x), 0).x;
@@ -89,10 +101,8 @@ void main() {
             // Check all vertically integrated columns.
             for (x = TILE_MIN_INDEX; x < TILE_MAX_INDEX; x++) {
                 xyIndex = xyShifted + ivec2(x, 0);
-                altDataVal.x = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.x, yAlign.x), 0).x;
-                altDataVal.y = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.y, yAlign.y), 0).y;
-                altDataVal.z = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.z, yAlign.z), 0).z;
-                altDataVal.w = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.w, yAlign.w), 0).w;
+                altDataValIndex = (x - TILE_MIN_INDEX) + (dX - ALIGN_MIN_SHIFT);
+                altDataVal = altDataVert[altDataValIndex];
 
                 // All frame data is loaded, compare reference frame with other frames.
                 // Linear noise model.
