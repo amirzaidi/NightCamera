@@ -59,8 +59,13 @@ public class Align extends Stage {
 
         private Texture mLargeResRef, mMidResRef, mSmallResRef;
         private Texture mLargeRes, mMidRes, mSmallRes;
+
         private Texture mLargeResRefSumHorz, mLargeResRefSumVert;
         private Texture mLargeResSumHorz, mLargeResSumVert;
+
+        private Texture mLargeResRefSumHorzDiff, mLargeResRefSumVertDiff;
+        private Texture mLargeResSumHorzDiff, mLargeResSumVertDiff;
+
         private Texture mSmallAlign, mMidAlign, mLargeAlign;
         private Texture mLargeWeights;
 
@@ -145,9 +150,9 @@ public class Align extends Stage {
             converter.useProgram(R.raw.stage1_integrate_fs);
             converter.seti("refFrame", 0);
 
-            mLargeResRefSumHorz = new Texture(mLargeResRef.getWidth(), mLargeResRef.getHeight(), 4,
+            mLargeResRefSumHorz = new Texture(mLargeResRef.getWidth(), mLargeResRef.getHeight(), 1,
                     Texture.Format.Float16, null);
-            mLargeResRefSumVert = new Texture(mLargeResRef.getWidth(), mLargeResRef.getHeight(), 4,
+            mLargeResRefSumVert = new Texture(mLargeResRef.getWidth(), mLargeResRef.getHeight(), 1,
                     Texture.Format.Float16, null);
 
             mLargeResRef.bind(GL_TEXTURE0);
@@ -174,6 +179,51 @@ public class Align extends Stage {
             converter.drawBlocks(mLargeResSumVert, BLOCK_HEIGHT, true);
 
             //DEBUG(this);
+        }
+
+        public void differentiate() {
+            GLPrograms converter = getConverter();
+
+            // Single-channel ref frame.
+            converter.useProgram(R.raw.stage1_diff_fs);
+            converter.seti("refFrame", 0);
+            converter.seti("bounds", mLargeRes.getWidth(), mLargeRes.getHeight());
+
+            // Shuffle other texture around instead of creating new ones.
+            mLargeResRefSumHorzDiff = new Texture(mLargeResRefSumHorz.getWidth(),
+                    mLargeResRefSumHorz.getHeight(), 1,
+                    Texture.Format.Float16, null);
+            mLargeResRefSumHorz.bind(GL_TEXTURE0);
+            converter.seti("direction", 0, 1); // Diff vertically.
+            converter.drawBlocks(mLargeResRefSumHorzDiff, BLOCK_HEIGHT, true);
+
+            mLargeResRefSumVertDiff = mLargeResRefSumHorz;
+            mLargeResRefSumVert.bind(GL_TEXTURE0);
+            converter.seti("direction", 1, 0); // Diff horizontally.
+            converter.drawBlocks(mLargeResRefSumVertDiff, BLOCK_HEIGHT, true);
+
+            // Release resources.
+            mLargeResRefSumVert.close();
+
+            converter.useProgram(R.raw.stage1_diff_4frames_fs);
+            converter.seti("altFrame", 0);
+            converter.seti("bounds", mLargeRes.getWidth(), mLargeRes.getHeight());
+
+            // Shuffle other texture around instead of creating new ones.
+            mLargeResSumHorzDiff = new Texture(mLargeResRefSumHorz.getWidth(),
+                    mLargeResRefSumHorz.getHeight(), 4,
+                    Texture.Format.Float16, null);
+            mLargeResSumHorz.bind(GL_TEXTURE0);
+            converter.seti("direction", 0, 1); // Diff vertically.
+            converter.drawBlocks(mLargeResSumHorzDiff, BLOCK_HEIGHT, true);
+
+            mLargeResSumVertDiff = mLargeResSumHorz;
+            mLargeResSumVert.bind(GL_TEXTURE0);
+            converter.seti("direction", 1, 0); // Diff horizontally.
+            converter.drawBlocks(mLargeResSumVertDiff, BLOCK_HEIGHT, true);
+
+            // Release resources
+            mLargeResSumVert.close();
         }
 
         /**
@@ -240,10 +290,10 @@ public class Align extends Stage {
                     mLargeRes.getHeight() / TILE_SIZE + 1, 4,
                     Texture.Format.UInt16, null);
 
-            mLargeResRefSumHorz.bind(GL_TEXTURE0);
-            mLargeResRefSumVert.bind(GL_TEXTURE2);
-            mLargeResSumHorz.bind(GL_TEXTURE4);
-            mLargeResSumVert.bind(GL_TEXTURE6);
+            mLargeResRefSumHorzDiff.bind(GL_TEXTURE0);
+            mLargeResRefSumVertDiff.bind(GL_TEXTURE2);
+            mLargeResSumHorzDiff.bind(GL_TEXTURE4);
+            mLargeResSumVertDiff.bind(GL_TEXTURE6);
             mMidAlign.bind(GL_TEXTURE8);
             converter.drawBlocks(mLargeAlign, BLOCK_HEIGHT / DOWNSAMPLE_SCALE, true);
             // We reduce the block height because of stuttering.
@@ -339,6 +389,9 @@ public class Align extends Stage {
 
             pyramid.integrate();
             Log.d(TAG, "Integrate time " + timer.reset() + "ms");
+
+            pyramid.differentiate();
+            Log.d(TAG, "Differentiate time " + timer.reset() + "ms");
 
             pyramid.align();
             Log.d(TAG, "Align time " + timer.reset() + "ms");

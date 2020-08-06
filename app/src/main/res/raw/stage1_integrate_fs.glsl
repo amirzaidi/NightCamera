@@ -1,7 +1,5 @@
 #version 300 es
 
-#define FLT_MAX 3.402823466e+38
-
 // Tiles of 16x16 with the middle 8x8 being the important region.
 #define TILE_MIN_INDEX -4
 #define TILE_MAX_INDEX 12

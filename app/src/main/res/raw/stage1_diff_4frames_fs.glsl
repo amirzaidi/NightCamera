@@ -1,9 +1,5 @@
 #version 300 es
 
-// Tiles of 16x16 with the middle 8x8 being the important region.
-#define TILE_MIN_INDEX -4
-#define TILE_MAX_INDEX 12
-
 precision mediump float;
 
 uniform sampler2D altFrame;
@@ -34,11 +30,6 @@ ivec2 mirrorOOBCoords(ivec2 coords) {
 
 void main() {
     ivec2 xy = ivec2(gl_FragCoord.xy);
-    vec4 sum = vec4(0.f);
-    // Use the same coordinate system as alignment stage.
-    // Middle of the tile is 8x8, with 4 offset on all sides.
-    for (int i = TILE_MIN_INDEX; i < TILE_MAX_INDEX; i++) {
-        sum += texelFetch(altFrame, mirrorOOBCoords(xy + i * direction), 0);
-    }
-    result = sum;
+    result = texelFetch(altFrame, mirrorOOBCoords(xy + direction), 0)
+        - texelFetch(altFrame, mirrorOOBCoords(xy - direction), 0);
 }
