@@ -13,6 +13,7 @@
 // Should be at least TILE_SCALE / 2.
 #define ALIGN_MIN_SHIFT -4
 #define ALIGN_MAX_SHIFT 4
+#define ALIGN_TOTAL_SHIFTS 9
 
 precision mediump float;
 
@@ -56,10 +57,21 @@ void main() {
     // Varying variables.
     int altDataValIndex;
     vec4 altDataVal;
+    vec4 altDataVert[TILE_SIZE];
     ivec2 xyShifted, xyIndex;
     vec4 noisef;
     vec4 currXYNoise;
     for (int dY = ALIGN_MIN_SHIFT; dY <= ALIGN_MAX_SHIFT; dY++) {
+        // Preload all vertical integrations for this row.
+        xyShifted = xyFrame + ivec2(TILE_MIN_INDEX + ALIGN_MIN_SHIFT, dY);
+        for (x = 0; x < TILE_SIZE + ALIGN_TOTAL_SHIFTS; x++) {
+            xyIndex = xyShifted + ivec2(x, 0);
+            altDataVert[x].x = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.x, yAlign.x), 0).x;
+            altDataVert[x].y = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.y, yAlign.y), 0).y;
+            altDataVert[x].z = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.z, yAlign.z), 0).z;
+            altDataVert[x].w = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.w, yAlign.w), 0).w;
+        }
+
         for (int dX = ALIGN_MIN_SHIFT; dX <= ALIGN_MAX_SHIFT; dX++) {
             currXYNoise = vec4(0.f);
             xyShifted = xyFrame + ivec2(dX, dY);
@@ -78,17 +90,13 @@ void main() {
                 currXYNoise += noisef;
             }
 
-            // Check all vertically integrated rows by doing expensive texelFetches.
-            for (x = TILE_MIN_INDEX; x < TILE_MAX_INDEX; x++) {
-                xyIndex = xyShifted + ivec2(x, 0);
-                altDataVal.x = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.x, yAlign.x), 0).x;
-                altDataVal.y = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.y, yAlign.y), 0).y;
-                altDataVal.z = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.z, yAlign.z), 0).z;
-                altDataVal.w = texelFetch(altFrameVert, xyIndex + ivec2(xAlign.w, yAlign.w), 0).w;
+            // Check all vertically integrated rows from cache.
+            for (x = 0; x < TILE_SIZE; x++) {
+                altDataVal = altDataVert[x + (dX - ALIGN_MIN_SHIFT)];
 
                 // All frame data is loaded, compare reference frame with other frames.
                 // Linear noise model.
-                noisef = abs(altDataVal - refDataVert[x - TILE_MIN_INDEX]);
+                noisef = abs(altDataVal - refDataVert[x]);
                 currXYNoise += noisef;
             }
 
