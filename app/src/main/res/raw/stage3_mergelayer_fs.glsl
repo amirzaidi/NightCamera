@@ -45,7 +45,7 @@ void main() {
     ivec2 xyTileDiv = xy / TILE_SIZE;
     ivec2 xyTileMod = xy % TILE_SIZE;
     vec2 xyTileInterp = vec2(float(xyTileMod.x), float(xyTileMod.y));
-    vec2 xyTileInterpFactor = xyTileInterp / float(TILE_SIZE) - 0.5f; // [-0.5, 0.5]
+    vec2 xyTileInterpFactor = xyTileInterp / float(TILE_SIZE - 1) - 0.5f; // [-0.5, 0.5]
 
     // -0.5 -> 0.5, 0 -> 1, 0.5 -> 0.5. Multiply it directly with Mid, and inverted with Corner.
     vec2 xyTileInterpFactorCos = 0.5f + 0.5f * vec2(
@@ -118,7 +118,6 @@ void main() {
         pxWeight += vertWeight;
         px += cornerWeight * dot(dotter, xyAlignCornerVal);
         pxWeight += cornerWeight;
-        break;
     }
 
     result = int(round(px / pxWeight));
