@@ -5,8 +5,8 @@
 #define TILE_SIZE 16
 #define TILE_PX_COUNT 256.f
 
-#define MIN_NOISE 1500.f
-#define MAX_NOISE 2000.f
+#define MIN_NOISE 640.f
+#define MAX_NOISE 3200.f
 
 precision mediump float;
 
@@ -46,11 +46,12 @@ void main() {
             altDataVal.w = texelFetch(altFrame, xyRef + ivec2(xAlign.w, yAlign.w), 0).w;
 
             // All frame data is loaded, compare reference frame with other frames.
-            // Penalize noise with x^1.5 error model.
+            // Penalize noise with linear error model.
             noisef = abs(altDataVal - refDataVal);
-            currXYNoise += noisef * sqrt(noisef);
+            currXYNoise += noisef;
         }
     }
 
-    result = 1.f - smoothstep(vec4(MIN_NOISE), vec4(MAX_NOISE), currXYNoise);
+    vec4 res = smoothstep(vec4(MIN_NOISE), vec4(MAX_NOISE), currXYNoise);
+    result = 1.f - res * res;
 }
