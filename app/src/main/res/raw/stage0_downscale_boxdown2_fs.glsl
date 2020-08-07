@@ -1,7 +1,11 @@
 #version 300 es
 
-#define RB_WEIGHT 0.325f
-#define GG_WEIGHT 0.675f
+// If the sensor noise is linear in all channels, then 50/50 split should reduce it the most.
+// Rescale to 0.5 total because we are adding two values per weight.
+#define RB_WEIGHT 0.25f
+#define GG_WEIGHT 0.25f
+//#define RB_WEIGHT 0.325f
+//#define GG_WEIGHT 0.675f
 
 precision lowp float;
 
@@ -22,7 +26,6 @@ void main() {
         + texelFetch(frame, xy + ivec2(0, 1), 0).x
     );
 
-    // Add weights using CFA later.
     result = RB_WEIGHT * topLeftAndBottomRight
         + GG_WEIGHT * topRightAndBottomLeft;
 }
