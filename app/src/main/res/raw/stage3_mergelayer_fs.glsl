@@ -1,6 +1,6 @@
 #version 300 es
 
-#define TILE_SIZE 16
+#define TILE_SCALE 16
 
 #define M_PI 3.1415926535897932384626433832795f
 
@@ -41,11 +41,11 @@ void main() {
     // Shift coords from optimized to real
     ivec2 xy = ivec2(gl_FragCoord.xy);
 
-    // Divide by TILE_SIZE, so we select the alignments for the current tile.
-    ivec2 xyTileDiv = xy / TILE_SIZE;
-    ivec2 xyTileMod = xy % TILE_SIZE;
+    // Divide by TILE_SCALE, so we select the alignments for the current tile.
+    ivec2 xyTileDiv = xy / TILE_SCALE;
+    ivec2 xyTileMod = xy % TILE_SCALE;
     vec2 xyTileInterp = vec2(float(xyTileMod.x), float(xyTileMod.y));
-    vec2 xyTileInterpFactor = xyTileInterp / float(TILE_SIZE - 1) - 0.5f; // [-0.5, 0.5]
+    vec2 xyTileInterpFactor = xyTileInterp / float(TILE_SCALE - 1) - 0.5f; // [-0.5, 0.5]
 
     // -0.5 -> 0.5, 0 -> 1, 0.5 -> 0.5. Multiply it directly with Mid, and inverted with Corner.
     vec2 xyTileInterpFactorCos = 0.5f + 0.5f * vec2(
