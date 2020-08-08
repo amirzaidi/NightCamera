@@ -348,21 +348,6 @@ public class Align extends Stage {
         Log.d("Align", "Test " + glGetError());
     }
 
-    private static class Timer {
-        private long startTime;
-
-        private Timer() {
-            reset();
-        }
-
-        private long reset() {
-            long endTime = System.currentTimeMillis();
-            long timeDiff = endTime - startTime;
-            startTime = endTime;
-            return timeDiff;
-        }
-    }
-
     @Override
     public void execute(StagePipeline.StageMap previousStages) {
         // Remove all previous textures.

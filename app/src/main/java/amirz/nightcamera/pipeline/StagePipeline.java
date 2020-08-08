@@ -14,6 +14,8 @@ import amirz.dngprocessor.pipeline.Stage;
 import amirz.nightcamera.data.ImageData;
 
 import static amirz.dngprocessor.util.Constants.BLOCK_HEIGHT;
+import static android.opengl.GLES10.GL_UNSIGNED_SHORT;
+import static android.opengl.GLES30.GL_RED_INTEGER;
 
 public class StagePipeline implements AutoCloseable {
     private static final String TAG = "StagePipeline";
@@ -47,7 +49,10 @@ public class StagePipeline implements AutoCloseable {
         }
 
         // Assume that last stage set everything but did not render yet.
-        mCore.getProgram().drawBlocks(mCore.width, mCore.height, BLOCK_HEIGHT);
+        Timer timer = new Timer();
+        mCore.getProgram().drawBlocks(mCore.width, mCore.height, BLOCK_HEIGHT, GL_RED_INTEGER, GL_UNSIGNED_SHORT);
+        Log.d(TAG, "Merge time " + timer.reset() + "ms");
+
         return mCore.resultBuffer();
     }
 

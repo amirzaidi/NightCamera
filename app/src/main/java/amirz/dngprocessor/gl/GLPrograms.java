@@ -61,15 +61,14 @@ public class GLPrograms implements AutoCloseable {
 
     public void drawBlocks(Texture texture, int bh, boolean forceFlush) {
         texture.setFrameBuffer();
-        drawBlocks(texture.getWidth(), texture.getHeight(), bh, forceFlush ? texture.type() : -1);
+        drawBlocks(texture.getWidth(), texture.getHeight(), bh, -1, forceFlush ? texture.type() : -1);
     }
 
-    public void drawBlocks(int w, int h, int bh) {
-        drawBlocks(w, h, bh, -1);
-    }
-
-    private void drawBlocks(int w, int h, int bh, int flushType) {
+    public void drawBlocks(int w, int h, int bh, int flushFormat, int flushType) {
         mFlushBuffer.reset();
+        if (flushFormat == -1) {
+            flushFormat = flushType == GL_FLOAT ? GL_RGBA : GL_RGBA_INTEGER;
+        }
 
         BlockDivider divider = new BlockDivider(h, bh);
         int[] row = new int[2];
@@ -80,7 +79,6 @@ public class GLPrograms implements AutoCloseable {
             // Force flush.
             glFlush();
             if (flushType != -1) {
-                int flushFormat = flushType == GL_FLOAT ? GL_RGBA : GL_RGBA_INTEGER;
                 glReadPixels(0, row[0], 1, 1, flushFormat, flushType, mFlushBuffer);
                 int glError = glGetError();
                 if (glError != 0) {
