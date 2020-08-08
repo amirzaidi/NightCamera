@@ -37,7 +37,7 @@ void main() {
     }
 
     ivec4 bestXShift, bestYShift;
-    vec4 bestXYNoise = vec4(FLT_MAX);
+    vec4 bestNoise = vec4(FLT_MAX);
 
     int shiftedY, shiftedX;
     bool isYInCache;
@@ -46,13 +46,14 @@ void main() {
     ivec2 xyRef;
     vec4 noisef;
 
+    vec4 currYNoise, currNoise;
     for (int dY = -ALIGN_MAX_SHIFT; dY <= ALIGN_MAX_SHIFT; dY++) {
         for (int dX = -ALIGN_MAX_SHIFT; dX <= ALIGN_MAX_SHIFT; dX++) {
-            vec4 currXYNoise = vec4(0.f);
-
             // Iterate over refData, processing all altData frames simultaneously.
+            currNoise = vec4(0.f);
             for (int y = 0; y < TILE_SIZE; y++) {
                 shiftedY = y + dY;
+                currYNoise = vec4(0.f);
                 for (int x = 0; x < TILE_SIZE; x++) {
                     // RefData is always in cache.
                     refDataVal = refData[y * TILE_SIZE + x];
@@ -68,28 +69,29 @@ void main() {
                     // All frame data is loaded, compare reference frame with other frames.
                     // Linear noise model.
                     noisef = abs(altDataVal - refDataVal);
-                    currXYNoise += noisef;
+                    currYNoise += noisef;
                 }
+                currNoise += currYNoise;
             }
 
             // Manually update the four frames' best shift.
-            if (currXYNoise.x < bestXYNoise.x) {
-                bestXYNoise.x = currXYNoise.x;
+            if (currNoise.x < bestNoise.x) {
+                bestNoise.x = currNoise.x;
                 bestXShift.x = dX;
                 bestYShift.x = dY;
             }
-            if (currXYNoise.y < bestXYNoise.y) {
-                bestXYNoise.y = currXYNoise.y;
+            if (currNoise.y < bestNoise.y) {
+                bestNoise.y = currNoise.y;
                 bestXShift.y = dX;
                 bestYShift.y = dY;
             }
-            if (currXYNoise.z < bestXYNoise.z) {
-                bestXYNoise.z = currXYNoise.z;
+            if (currNoise.z < bestNoise.z) {
+                bestNoise.z = currNoise.z;
                 bestXShift.z = dX;
                 bestYShift.z = dY;
             }
-            if (currXYNoise.w < bestXYNoise.w) {
-                bestXYNoise.w = currXYNoise.w;
+            if (currNoise.w < bestNoise.w) {
+                bestNoise.w = currNoise.w;
                 bestXShift.w = dX;
                 bestYShift.w = dY;
             }

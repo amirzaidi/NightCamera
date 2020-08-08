@@ -50,9 +50,9 @@ void main() {
         refDataVert[i] = texelFetch(refFrameVert, xyFrame + ivec2(i + TILE_MIN_INDEX, 0), 0).x;
     }
 
-    // Optimize the bestXShift and bestYShift by minimizing bestXYNoise.
+    // Optimize the bestXShift and bestYShift by minimizing bestNoise.
     ivec4 bestXShift, bestYShift;
-    vec4 bestXYNoise = vec4(FLT_MAX);
+    vec4 bestNoise = vec4(FLT_MAX);
 
     // Varying variables.
     int altDataValIndex;
@@ -60,7 +60,7 @@ void main() {
     vec4 altDataVert[TILE_SIZE];
     ivec2 xyShifted, xyIndex;
     vec4 noisef;
-    vec4 currXYNoise;
+    vec4 currXNoise, currYNoise, currNoise;
     for (int dY = ALIGN_MIN_SHIFT; dY <= ALIGN_MAX_SHIFT; dY++) {
         // Preload all vertical integrations for this row.
         xyShifted = xyFrame + ivec2(TILE_MIN_INDEX + ALIGN_MIN_SHIFT, dY);
@@ -73,7 +73,8 @@ void main() {
         }
 
         for (int dX = ALIGN_MIN_SHIFT; dX <= ALIGN_MAX_SHIFT; dX++) {
-            currXYNoise = vec4(0.f);
+            currXNoise = vec4(0.f);
+            currYNoise = vec4(0.f);
             xyShifted = xyFrame + ivec2(dX, dY);
 
             // Check all horizontally integrated rows by doing expensive texelFetches.
@@ -87,7 +88,7 @@ void main() {
                 // All frame data is loaded, compare reference frame with other frames.
                 // Linear noise model.
                 noisef = abs(altDataVal - refDataHorz[y - TILE_MIN_INDEX]);
-                currXYNoise += noisef;
+                currYNoise += noisef;
             }
 
             // Check all vertically integrated rows from cache.
@@ -97,27 +98,29 @@ void main() {
                 // All frame data is loaded, compare reference frame with other frames.
                 // Linear noise model.
                 noisef = abs(altDataVal - refDataVert[x]);
-                currXYNoise += noisef;
+                currXNoise += noisef;
             }
 
+            currNoise = currXNoise + currYNoise;
+
             // Manually update the four frames' best shift.
-            if (currXYNoise.x < bestXYNoise.x) {
-                bestXYNoise.x = currXYNoise.x;
+            if (currNoise.x < bestNoise.x) {
+                bestNoise.x = currNoise.x;
                 bestXShift.x = dX;
                 bestYShift.x = dY;
             }
-            if (currXYNoise.y < bestXYNoise.y) {
-                bestXYNoise.y = currXYNoise.y;
+            if (currNoise.y < bestNoise.y) {
+                bestNoise.y = currNoise.y;
                 bestXShift.y = dX;
                 bestYShift.y = dY;
             }
-            if (currXYNoise.z < bestXYNoise.z) {
-                bestXYNoise.z = currXYNoise.z;
+            if (currNoise.z < bestNoise.z) {
+                bestNoise.z = currNoise.z;
                 bestXShift.z = dX;
                 bestYShift.z = dY;
             }
-            if (currXYNoise.w < bestXYNoise.w) {
-                bestXYNoise.w = currXYNoise.w;
+            if (currNoise.w < bestNoise.w) {
+                bestNoise.w = currNoise.w;
                 bestXShift.w = dX;
                 bestYShift.w = dY;
             }
