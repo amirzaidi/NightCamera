@@ -31,5 +31,5 @@ ivec2 mirrorOOBCoords(ivec2 coords) {
 void main() {
     ivec2 xy = ivec2(gl_FragCoord.xy);
     result = texelFetch(refFrame, mirrorOOBCoords(xy + direction), 0).x
-        - texelFetch(refFrame, mirrorOOBCoords(xy - direction), 0).x;
+        - texelFetch(refFrame, mirrorOOBCoords(xy), 0).x;
 }
