@@ -21,6 +21,8 @@ uniform int alignCount;
 
 uniform ivec2 frameSize;
 
+const vec4 sumVec4 = vec4(1.f);
+
 // Out
 out int result;
 
@@ -59,8 +61,8 @@ void main() {
     vec2 xyTileInterpFactorCosInv = 1.f - xyTileInterpFactorCos;
 
     // Which other tiles to sample.
-    int dx = xyTileInterpFactor.x < 0.f ? -1 : 1;
-    int dy = xyTileInterpFactor.y < 0.f ? -1 : 1;
+    int dx = xyTileInterpFactor.x < 0.5f ? -1 : 1;
+    int dy = xyTileInterpFactor.y < 0.5f ? -1 : 1;
 
     // Middle. 00
     vec4 xyAlignMidWeight = texelFetch(alignmentWeight, xyTileDiv, 0);
@@ -78,45 +80,28 @@ void main() {
     vec4 xyAlignCornerWeight = texelFetch(alignmentWeight, xyTileDiv + ivec2(dx, dy), 0);
     vec4 xyAlignCornerVal = getAlignedVals(xy, xyTileDiv + ivec2(dx, dy));
 
-    // Bypass for now.
+    // Reference pixel.
     float px = float(texelFetch(refFrame, xy, 0).x);
     float pxWeight = 1.f;
 
-    float midWeight, horzWeight, vertWeight, cornerWeight;
-    vec4 dotter;
+    // Cosine window, so middle only gets the mid pixel, and the edge gets split 50/50.
+    xyAlignMidWeight *= xyTileInterpFactorCos.x * xyTileInterpFactorCos.y;
+    xyAlignHorzWeight *= xyTileInterpFactorCosInv.x * xyTileInterpFactorCos.y;
+    xyAlignVertWeight *= xyTileInterpFactorCos.x * xyTileInterpFactorCosInv.y;
+    xyAlignCornerWeight *= xyTileInterpFactorCosInv.x * xyTileInterpFactorCosInv.y;
 
     // Order for spatial merge and temporal merge is inverted compared to HDR-Plus,
     // but the result should be the same as it's just a linear combination.
-    // Same code but for x, y, z, w.
-    for (int i = 0; i < alignCount; i++) {
-        switch (i) {
-            case 0: dotter = vec4(1.f, 0.f, 0.f, 0.f); break;
-            case 1: dotter = vec4(0.f, 1.f, 0.f, 0.f); break;
-            case 2: dotter = vec4(0.f, 0.f, 1.f, 0.f); break;
-            case 3: dotter = vec4(0.f, 0.f, 0.f, 1.f); break;
-        }
+    // Add all altFrames at once.
+    px += dot(xyAlignMidWeight, xyAlignMidVal);
+    px += dot(xyAlignHorzWeight, xyAlignHorzVal);
+    px += dot(xyAlignVertWeight, xyAlignVertVal);
+    px += dot(xyAlignCornerWeight, xyAlignCornerVal);
 
-        midWeight = dot(dotter, xyAlignMidWeight);
-        horzWeight = dot(dotter, xyAlignHorzWeight);
-        vertWeight = dot(dotter, xyAlignVertWeight);
-        cornerWeight = dot(dotter, xyAlignCornerWeight);
-
-        // Cosine window, so middle only gets the mid pixel, and the edge gets split 50/50.
-        midWeight *= xyTileInterpFactorCos.x * xyTileInterpFactorCos.y;
-        horzWeight *= xyTileInterpFactorCosInv.x * xyTileInterpFactorCos.y;
-        vertWeight *= xyTileInterpFactorCos.x * xyTileInterpFactorCosInv.y;
-        cornerWeight *= xyTileInterpFactorCosInv.x * xyTileInterpFactorCosInv.y;
-
-        // For this alt frame, add all four possible pixel values with their weights.
-        px += midWeight * dot(dotter, xyAlignMidVal);
-        pxWeight += midWeight;
-        px += horzWeight * dot(dotter, xyAlignHorzVal);
-        pxWeight += horzWeight;
-        px += vertWeight * dot(dotter, xyAlignVertVal);
-        pxWeight += vertWeight;
-        px += cornerWeight * dot(dotter, xyAlignCornerVal);
-        pxWeight += cornerWeight;
-    }
+    pxWeight += dot(xyAlignMidWeight, sumVec4);
+    pxWeight += dot(xyAlignHorzWeight, sumVec4);
+    pxWeight += dot(xyAlignVertWeight, sumVec4);
+    pxWeight += dot(xyAlignCornerWeight, sumVec4);
 
     result = int(round(px / pxWeight));
 }
