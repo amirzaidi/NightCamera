@@ -29,13 +29,16 @@ void main() {
     ivec2 xyRef;
     float refDataVal;
     vec4 altDataVal, noisef;
-    vec4 currXYNoise = vec4(0.f);
+
+    vec4 currNoise = vec4(0.f);
+    vec4 currYNoise;
 
     for (int y = 0; y < TILE_SIZE; y++) {
+        currYNoise = vec4(0.f);
         for (int x = 0; x < TILE_SIZE; x++) {
             // Use a bayer pattern to speed up this comparison.
             if ((x + y) % 2 == 1) {
-                continue;
+                //continue;
             }
 
             xyRef = xyFrame + ivec2(x, y) - TILE_OFFSET;
@@ -48,10 +51,19 @@ void main() {
             // All frame data is loaded, compare reference frame with other frames.
             // Penalize noise with linear error model.
             noisef = abs(altDataVal - refDataVal);
-            currXYNoise += noisef;
+            currYNoise += noisef;
         }
+        currNoise += currYNoise;
     }
 
-    vec4 res = smoothstep(vec4(MIN_NOISE), vec4(MAX_NOISE), currXYNoise);
-    result = 1.f - res * res;
+    float factor = 8.f;                         // factor by which inverse function is elongated
+    float min_dist = 10.f;                          // pixel L1 distance below which weight is maximal
+    float max_dist = 300.f;                         // pixel L1 distance above which weight is zero
+
+    vec4 dist = currNoise / 256.f;
+    vec4 norm_dist = max(vec4(1.f), dist / factor - min_dist / factor);
+
+    vec4 weight = mix(1.f / norm_dist, vec4(0.f), greaterThan(norm_dist, vec4(max_dist - min_dist)));
+
+    result = weight;
 }
