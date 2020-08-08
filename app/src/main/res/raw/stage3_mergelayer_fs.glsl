@@ -1,8 +1,11 @@
 #version 300 es
 
+#define TILE_OFFSET 8
 #define TILE_SCALE 16
+#define TILE_SIZE 32
 
 #define M_PI 3.1415926535897932384626433832795f
+#define M_2PI 6.28318530718f
 
 precision mediump float;
 
@@ -43,14 +46,15 @@ void main() {
 
     // Divide by TILE_SCALE, so we select the alignments for the current tile.
     ivec2 xyTileDiv = xy / TILE_SCALE;
-    ivec2 xyTileMod = xy % TILE_SCALE;
-    vec2 xyTileInterp = vec2(float(xyTileMod.x), float(xyTileMod.y));
-    vec2 xyTileInterpFactor = (vec2(xyTileInterp) + 0.5f) / float(TILE_SCALE) - 0.5f; // <-0.5, 0.5>
+    ivec2 xyTileMod = (xy % TILE_SCALE) + TILE_OFFSET;
+    vec2 xyTileInterp = vec2(float(xyTileMod.x), float(xyTileMod.y)); // [8, 23] -> [8.5, 23.5]
+    vec2 xyTileInterpFactor = (vec2(xyTileInterp) + 0.5f) / float(TILE_SIZE); // <0.25, 0.75>
 
-    // -0.5 -> 0.5, 0 -> 1, 0.5 -> 0.5. Multiply it directly with Mid, and inverted with Corner.
-    vec2 xyTileInterpFactorCos = 0.5f + 0.5f * vec2(
-        cos(M_PI * xyTileInterpFactor.x),
-        cos(M_PI * xyTileInterpFactor.y)
+    // 0 -> 0; 0.25 -> 0.5; 0.5 -> 1; 0.75 -> 0.5; 1 -> 0.
+    // Multiply it directly with Mid, and inverted with Corner.
+    vec2 xyTileInterpFactorCos = 0.5f - 0.5f * vec2(
+        cos(M_2PI * xyTileInterpFactor.x),
+        cos(M_2PI * xyTileInterpFactor.y)
     );
     vec2 xyTileInterpFactorCosInv = 1.f - xyTileInterpFactorCos;
 
@@ -81,21 +85,15 @@ void main() {
     float midWeight, horzWeight, vertWeight, cornerWeight;
     vec4 dotter;
 
+    // Order for spatial merge and temporal merge is inverted compared to HDR-Plus,
+    // but the result should be the same as it's just a linear combination.
     // Same code but for x, y, z, w.
     for (int i = 0; i < alignCount; i++) {
         switch (i) {
-            case 0:
-                dotter = vec4(1.f, 0.f, 0.f, 0.f);
-                break;
-            case 1:
-                dotter = vec4(0.f, 1.f, 0.f, 0.f);
-                break;
-            case 2:
-                dotter = vec4(0.f, 0.f, 1.f, 0.f);
-                break;
-            case 3:
-                dotter = vec4(0.f, 0.f, 0.f, 1.f);
-                break;
+            case 0: dotter = vec4(1.f, 0.f, 0.f, 0.f); break;
+            case 1: dotter = vec4(0.f, 1.f, 0.f, 0.f); break;
+            case 2: dotter = vec4(0.f, 0.f, 1.f, 0.f); break;
+            case 3: dotter = vec4(0.f, 0.f, 0.f, 1.f); break;
         }
 
         midWeight = dot(dotter, xyAlignMidWeight);
