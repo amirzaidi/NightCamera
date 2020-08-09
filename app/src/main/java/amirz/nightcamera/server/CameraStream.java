@@ -5,6 +5,7 @@ import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CaptureRequest;
+import android.media.ImageReader;
 import android.os.Handler;
 import android.os.HandlerThread;
 import androidx.annotation.NonNull;
@@ -28,6 +29,7 @@ public class CameraStream extends CameraDevice.StateCallback implements AutoClos
 
     private final DevicePreset mDevice;
     private final CameraZSLQueue mZSLQueue;
+    private final ImageReader mYUVReader;
     private final CameraServer.CameraStreamFormat mStreamFormat;
     private final CameraStreamCallbacks mStreamCallbacks;
 
@@ -49,11 +51,19 @@ public class CameraStream extends CameraDevice.StateCallback implements AutoClos
     public CameraStream(CameraServer.CameraStreamFormat streamFormat, CameraStreamCallbacks cb) {
         mDevice = DevicePreset.getInstance();
         mZSLQueue = new CameraZSLQueue(streamFormat, cb.getMotionTracker());
+
         mStreamFormat = streamFormat;
         mStreamCallbacks = cb;
 
         switch (mStreamFormat.format) {
             case ImageFormat.RAW_SENSOR:
+                // This is idiotic and should not be necessary for a decent preview stream.
+                mYUVReader = ImageReader.newInstance(
+                        streamFormat.size.getWidth(),
+                        streamFormat.size.getHeight(),
+                        ImageFormat.YUV_420_888, 1);
+
+                // Initialize the processor.
                 mProcessor = new PostProcessorRAW(mStreamFormat);
                 break;
             default:
@@ -83,7 +93,7 @@ public class CameraStream extends CameraDevice.StateCallback implements AutoClos
 
         Surface previewSurface = mStreamCallbacks.getPreviewSurface();
         Surface zslSurface = mZSLQueue.getReadSurface();
-        mCamera.createCaptureSession(Arrays.asList(previewSurface, zslSurface),
+        mCamera.createCaptureSession(Arrays.asList(previewSurface, mYUVReader.getSurface(), zslSurface),
                 new CameraCaptureSession.StateCallback() {
             @Override
             public void onConfigured(@NonNull CameraCaptureSession session) {
